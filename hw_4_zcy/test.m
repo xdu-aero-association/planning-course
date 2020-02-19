@@ -29,7 +29,6 @@ dpz = pzf-vz0*T-pz0;
 vxf = 0;
 vyf = 0;
 vzf = 0;
-
 dvx = vxf-vx0;
 dvy = vyf-vy0;
 dvz = vzf-vz0;
