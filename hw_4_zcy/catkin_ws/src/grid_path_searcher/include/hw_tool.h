@@ -9,6 +9,11 @@
 #include "math.h"
 #include <State.h>
 
+// for EigenSolver
+#include <Eigen/Eigenvalues> 
+// for PolynomialSolver
+#include <unsupported/Eigen/Polynomials>
+
 class Homeworktool
 {	
 	private:
