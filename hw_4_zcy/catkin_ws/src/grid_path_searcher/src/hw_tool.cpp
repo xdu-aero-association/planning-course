@@ -87,40 +87,108 @@ double Homeworktool::OptimalBVP(Eigen::Vector3d _start_position,
                                 Eigen::Vector3d _target_position) {
   double optimal_cost =
       100000; // this just to initial the optimal_cost, you can delete it
-              /*
-            
-            
-            
-            
-              STEP 2: go to the hw_tool.cpp and finish the function Homeworktool::OptimalBVP
-              the solving process has been given in the document
-            
-              because the final point of trajectory is the start point of OBVP, so we input
-              the pos,vel to the OBVP
-            
-              after finish Homeworktool::OptimalBVP, the Trajctory_Cost will record the
-              optimal cost of this trajectory
-            
-            
-              */
-  double T = 1.0;
-  // calculate J for given T
-  VectorXd delta_pose(6, 1); // [dpx,dpy,dpz,dvx,dvy,dvz].T
-  for (int i = 0; i < 3; ++i) {
-    delta_pose(i) = _target_position(i) - _start_position(i);
-    delta_pose(i + 3) =
-        0.0 - _start_velocity(i); // because we want to stay at final pos
+  /*
+
+
+
+
+  STEP 2: go to the hw_tool.cpp and finish the function Homeworktool::OptimalBVP
+  the solving process has been given in the document
+
+  because the final point of trajectory is the start point of OBVP, so we input
+  the pos,vel to the OBVP
+
+  after finish Homeworktool::OptimalBVP, the Trajctory_Cost will record the
+  optimal cost of this trajectory
+
+
+  */
+  ROS_INFO("p0:[%.3f,%.3f,%.3f] pf:[%.3f,%.3f,%.3f]", _start_position(0),
+           _start_position(1), _start_position(2), _target_position(0),
+           _target_position(1), _target_position(2));
+  ROS_INFO("v0:[%.3f,%.3f,%.3f", _start_velocity(0), _start_velocity(1),
+           _start_velocity(2));
+  // first solve the 3rd order polynomial of T
+  double px0 = _start_position(0), py0 = _start_position(1),
+         pz0 = _start_position(2);
+  double vx0 = _start_velocity(0), vy0 = _start_velocity(1),
+         vz0 = _start_velocity(2);
+  double pxf = _target_position(0), pyf = _target_position(1),
+         pzf = _target_position(2);
+  VectorXd coeffs(4);
+  coeffs[0] = -36 * pow(px0, 2) + 72 * px0 * pxf - 36 * pow(pxf, 2) -
+              36 * pow(py0, 2) + 72 * py0 * pyf - 36 * pow(pyf, 2) -
+              36 * pow(pz0, 2) + 72 * pz0 * pzf - 36 * pow(pzf, 2);
+  coeffs[1] = 24 * pxf * vx0 - 24 * px0 * vx0 - 24 * py0 * vy0 +
+              24 * pyf * vy0 - 24 * pz0 * vz0 + 24 * pzf * vz0;
+  coeffs[2] = -4 * pow(vx0, 2) - 4 * pow(vy0, 2) - 4 * pow(vz0, 2);
+  coeffs[3] = 1;
+  ROS_INFO("[OBVP] coeffs initialized ");
+  // method 1: solve by compute eigen values of matrix A
+  MatrixXd A(4, 4);
+  for (int i = 0; i < 4; ++i) {
+    if (i < 3) {
+      A(i + 1, i) = 1;
+    }
+    A(i, 3) = -coeffs[i];
   }
-  MatrixXd B(6,6);
-  B << -12/pow(T,3),0,0,6/pow(T,2),0,0,
-       0,-12/pow(T,3),0,0,6/pow(T,2),0,
-       0,0,-12/pow(T,3),0,0,6/pow(T,2),
-       6/pow(T,2),0,0,-2/T,0,0,
-       0,6/pow(T,2),0,0,-2/T,0,
-       0,0,6/pow(T,2),0,0,-2/T;
-  VectorXd Result = B*delta_pose;
-  double a1 = Result(0);
-  double a2 = Result(1);
-  
+  ROS_INFO("[OBVP] matrix A initialized ");
+  Eigen::EigenSolver<MatrixXd> es(A);
+  auto roots1 = es.eigenvalues();
+  ROS_INFO("[OBVP] eigen solved");
+  // method 2: solve by eigen polynomialsolver
+  Eigen::PolynomialSolver<double, Eigen::Dynamic> solver;
+  solver.compute(coeffs);
+  const Eigen::PolynomialSolver<double, Eigen::Dynamic>::RootsType &roots2 =
+      solver.roots();
+  ROS_INFO("[OBVP] polynomial solved");
+  bool first_flag = 0;
+  double T = 1;
+  for (int r = 0; r < roots2.rows(); ++r) {
+    auto root_poly = roots2(r);
+    // if (abs(root_eigen.imag()) > 1e-10 || root_eigen.real() <= 0) {
+    if (abs(root_poly.imag()) > 1e-10 || root_poly.real() <= 0) {
+      continue;
+    }
+    // T = root_eigen.real();
+    T = root_poly.real();
+    ROS_INFO("[OBVP] root_poly:%.3f", root_poly.real());
+    // calculate J for given T
+    VectorXd delta_pose(6, 1); // [dpx,dpy,dpz,dvx,dvy,dvz].T
+    for (int i = 0; i < 3; ++i) {
+      delta_pose(i) =
+          _target_position(i) - _start_velocity(i) * T - _start_position(i);
+      delta_pose(i + 3) =
+          0.0 - _start_velocity(i); // because we want to stay at final pos
+    }
+    MatrixXd B(6, 6);
+    for (int i = 0; i < 3; ++i) {
+      B(i, i) = -12 / pow(T, 3);
+      B(i, i + 3) = 6 / pow(T, 2);
+      B(i + 3, i) = 6 / pow(T, 2);
+      B(i + 3, i + 3) = -2 / T;
+    }
+    ROS_INFO("[OBVP] matrix B initialized");
+    VectorXd Result = B * delta_pose;
+    ROS_INFO("[OBVP] result calculated");
+    double a[3] = {0.0};
+    double b[3] = {0.0};
+    for (int i = 0; i < 3; ++i) {
+      a[i] = Result(i);
+      b[i] = Result(i + 3);
+    }
+    double J = T;
+    for (int i = 0; i < 3; ++i) {
+      J += (1 / 3 * pow(a[i], 2) * pow(T, 3) + a[i] * b[i] * pow(T, 2) +
+            pow(b[i], 2) * T);
+    }
+    if (first_flag == 0) {
+      first_flag = 1;
+      optimal_cost = J;
+    } else if (optimal_cost > J) {
+      optimal_cost = J;
+    }
+    ROS_INFO("[OBVP] optimal cost: %.3f", optimal_cost);
+  }
   return optimal_cost;
 }

@@ -152,6 +152,8 @@ void trajectoryLibrary(const Vector3d start_pt, const Vector3d start_velocity,
         double delta_time;
         delta_time = _time_interval / double(_time_step);
 
+        ROS_INFO("[discrete] Begin calculation");
+
         for (int step = 0; step <= _time_step; step++) {
 
           /*
