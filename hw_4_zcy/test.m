@@ -46,7 +46,7 @@ dJ = diff(J,T);
 dJ_sim = simplify(dJ);
 dJ_sim = dJ_sim * T^4;
 eqn = dJ == 0;
-% S = solve(eqn,T);
+S_an = solve(eqn,T);
 S = solve(eqn,T, 'MaxDegree', 4);        
 % coeffs = sym2poly(dJ_sim);
 coeffs_dj = coeffs(dJ_sim,T);
