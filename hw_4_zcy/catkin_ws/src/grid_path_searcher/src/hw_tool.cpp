@@ -115,14 +115,15 @@ double Homeworktool::OptimalBVP(Eigen::Vector3d _start_position,
          vz0 = _start_velocity(2);
   double pxf = _target_position(0), pyf = _target_position(1),
          pzf = _target_position(2);
-  VectorXd coeffs(4);
+  VectorXd coeffs(5);
   coeffs[0] = -36 * pow(px0, 2) + 72 * px0 * pxf - 36 * pow(pxf, 2) -
               36 * pow(py0, 2) + 72 * py0 * pyf - 36 * pow(pyf, 2) -
               36 * pow(pz0, 2) + 72 * pz0 * pzf - 36 * pow(pzf, 2);
   coeffs[1] = 24 * pxf * vx0 - 24 * px0 * vx0 - 24 * py0 * vy0 +
               24 * pyf * vy0 - 24 * pz0 * vz0 + 24 * pzf * vz0;
   coeffs[2] = -4 * pow(vx0, 2) - 4 * pow(vy0, 2) - 4 * pow(vz0, 2);
-  coeffs[3] = 1;
+  coeffs[3] = 0; // why?? in matlab coeffs has only 4 members
+  coeffs[4] = 1;
   ROS_INFO("[OBVP] coeffs initialized ");
   // method 1: solve by compute eigen values of matrix A
   MatrixXd A(4, 4);
@@ -144,7 +145,15 @@ double Homeworktool::OptimalBVP(Eigen::Vector3d _start_position,
   ROS_INFO("[OBVP] polynomial solved");
   bool first_flag = 0;
   double T = 1;
+  for (int r = 0; r < roots1.rows(); ++r) {
+    auto root_eigen = roots1(r);
+    if (abs(root_eigen.imag()) > 1e-10 || root_eigen.real() <= 0) {
+      continue;
+    }
+    ROS_WARN("[OBVP] r:%d, root_eigen:%.3f", r, root_eigen.real());
+  }
   for (int r = 0; r < roots2.rows(); ++r) {
+    //   for (int r = 0; r < 4; ++r) {
     auto root_poly = roots2(r);
     // if (abs(root_eigen.imag()) > 1e-10 || root_eigen.real() <= 0) {
     if (abs(root_poly.imag()) > 1e-10 || root_poly.real() <= 0) {
@@ -152,7 +161,20 @@ double Homeworktool::OptimalBVP(Eigen::Vector3d _start_position,
     }
     // T = root_eigen.real();
     T = root_poly.real();
-    ROS_INFO("[OBVP] root_poly:%.3f", root_poly.real());
+    // int z = r + 1;
+    // T = pow(z, 4) -
+    //     pow(z, 2) * (4 * pow(vx0, 2) + 4 * pow(vy0, 2) + 4 * pow(vz0, 2)) -
+    //     z * (24 * px0 * vx0 - 24 * pxf * vx0 + 24 * py0 * vy0 - 24 * pyf *
+    //     vy0 +
+    //          24 * pz0 * vz0 - 24 * pzf * vz0) +
+    //     72 * pz0 * pzf + 72 * py0 * pyf + 72 * px0 * pxf - 36 * pow(pzf, 2) -
+    //     36 * pow(pz0, 2) - 36 * pow(pyf, 2) - 36 * pow(py0, 2) -
+    //     36 * pow(pxf, 2) - 36 * pow(px0, 2);
+    ROS_WARN("[OBVP] r:%d, root_poly:%.3f", r, root_poly.real());
+    // ROS_INFO("[OBVP] z: %d, T:%.3f",z,T);
+    // if (T < 0) {
+    //   continue;
+    // }
     // calculate J for given T
     VectorXd delta_pose(6, 1); // [dpx,dpy,dpz,dvx,dvy,dvz].T
     for (int i = 0; i < 3; ++i) {
@@ -168,15 +190,34 @@ double Homeworktool::OptimalBVP(Eigen::Vector3d _start_position,
       B(i + 3, i) = 6 / pow(T, 2);
       B(i + 3, i + 3) = -2 / T;
     }
-    ROS_INFO("[OBVP] matrix B initialized");
+    // ROS_INFO("[OBVP] matrix B initialized");
     VectorXd Result = B * delta_pose;
-    ROS_INFO("[OBVP] result calculated");
+    printf("[OBVP] Result: \n");
+    for (int i = 0; i < 6; ++i) {
+        printf("R[%d]:%.3f ", i, Result(i));
+    }
+    printf("\n");
+    // ROS_INFO("[OBVP] result calculated");
     double a[3] = {0.0};
     double b[3] = {0.0};
     for (int i = 0; i < 3; ++i) {
       a[i] = Result(i);
       b[i] = Result(i + 3);
     }
+    a[0] = (12*(px0-pxf+T*vx0))/(T*T*T) - (6*vx0)/(T*T);
+    a[1] = (12*(py0-pyf+T*vy0))/(T*T*T) - (6*vy0)/(T*T);
+    a[2] = (12*(pz0-pzf+T*vz0))/(T*T*T) - (6*vz0)/(T*T);
+    b[0] = (2*vx0)/T - (6*(px0-pxf+T*vx0))/(T*T);
+    b[1] = (2*vy0)/T - (6*(py0-pyf+T*vz0))/(T*T);
+    b[2] = (2*vz0)/T - (6*(pz0-pzf+T*vy0))/(T*T);
+    printf("[OBVP] ab: \n");
+    for (int i = 0; i < 3; ++i) {
+        printf("a[%d]:%.3f ", i, a[i]);
+    }
+    for (int i = 0; i < 3; ++i) {
+        printf("b[%d]:%.3f ", i, b[i]);
+    }
+    printf("\n");
     double J = T;
     for (int i = 0; i < 3; ++i) {
       J += (1 / 3 * pow(a[i], 2) * pow(T, 3) + a[i] * b[i] * pow(T, 2) +
@@ -188,7 +229,10 @@ double Homeworktool::OptimalBVP(Eigen::Vector3d _start_position,
     } else if (optimal_cost > J) {
       optimal_cost = J;
     }
-    ROS_INFO("[OBVP] optimal cost: %.3f", optimal_cost);
+    ROS_WARN("[OBVP] optimal cost: %.3f", optimal_cost);
+    if (optimal_cost < 0) {
+      optimal_cost = 0;
+    }
   }
   return optimal_cost;
 }
