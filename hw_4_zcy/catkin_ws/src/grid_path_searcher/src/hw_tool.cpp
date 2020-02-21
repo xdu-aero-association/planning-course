@@ -115,18 +115,18 @@ double Homeworktool::OptimalBVP(Eigen::Vector3d _start_position,
          vz0 = _start_velocity(2);
   double pxf = _target_position(0), pyf = _target_position(1),
          pzf = _target_position(2);
-  VectorXd coeffs(5);
+  VectorXd coeffs = VectorXd::Zero(5,1);
   coeffs[0] = -36 * pow(px0, 2) + 72 * px0 * pxf - 36 * pow(pxf, 2) -
               36 * pow(py0, 2) + 72 * py0 * pyf - 36 * pow(pyf, 2) -
               36 * pow(pz0, 2) + 72 * pz0 * pzf - 36 * pow(pzf, 2);
   coeffs[1] = 24 * pxf * vx0 - 24 * px0 * vx0 - 24 * py0 * vy0 +
               24 * pyf * vy0 - 24 * pz0 * vz0 + 24 * pzf * vz0;
   coeffs[2] = -4 * pow(vx0, 2) - 4 * pow(vy0, 2) - 4 * pow(vz0, 2);
-  coeffs[3] = 0; // why?? in matlab coeffs has only 4 members
+  coeffs[3] = 0; // in matlab we have to use [c,t] = coeffs(f(t)) to get corresponding terms!!
   coeffs[4] = 1;
   ROS_INFO("[OBVP] coeffs initialized ");
   // method 1: solve by compute eigen values of matrix A
-  MatrixXd A(4, 4);
+  MatrixXd A = MatrixXd::Zero(4,4);
   for (int i = 0; i < 4; ++i) {
     if (i < 3) {
       A(i + 1, i) = 1;
@@ -176,14 +176,14 @@ double Homeworktool::OptimalBVP(Eigen::Vector3d _start_position,
     //   continue;
     // }
     // calculate J for given T
-    VectorXd delta_pose(6, 1); // [dpx,dpy,dpz,dvx,dvy,dvz].T
+    VectorXd delta_pose = VectorXd::Zero(6,1); // [dpx,dpy,dpz,dvx,dvy,dvz].T
     for (int i = 0; i < 3; ++i) {
       delta_pose(i) =
           _target_position(i) - _start_velocity(i) * T - _start_position(i);
       delta_pose(i + 3) =
           0.0 - _start_velocity(i); // because we want to stay at final pos
     }
-    MatrixXd B(6, 6);
+    MatrixXd B = MatrixXd::Zero(6,6);
     for (int i = 0; i < 3; ++i) {
       B(i, i) = -12 / pow(T, 3);
       B(i, i + 3) = 6 / pow(T, 2);
