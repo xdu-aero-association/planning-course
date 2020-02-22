@@ -53,7 +53,8 @@ void rcvPointCloudCallBack(const sensor_msgs::PointCloud2 &pointcloud_map);
 void trajectoryLibrary(const Eigen::Vector3d start_pt,
                        const Eigen::Vector3d start_velocity,
                        const Eigen::Vector3d target_pt);
-void visTraLibrary(TrajectoryStatePtr ***TraLibrary);
+void visTraLibrary(TrajectoryStatePtr ***TraLibrary,
+                   const vector<Vector3d> &optimal_states);
 
 void rcvWaypointsCallback(const nav_msgs::Path &wp) {
   if (wp.poses[0].pose.position.z < 0.0 || _has_map == false)
@@ -116,6 +117,8 @@ void trajectoryLibrary(const Vector3d start_pt, const Vector3d start_velocity,
   int b = 0;
   int c = 0;
 
+  OBVPResult obvp_result;
+  bool first_flag = 0;
   double min_Cost = 100000.0;
   double Trajctory_Cost;
   TraLibrary = new TrajectoryStatePtr *
@@ -203,31 +206,59 @@ void trajectoryLibrary(const Vector3d start_pt, const Vector3d start_velocity,
 
 
         */
-        Trajctory_Cost = _homework_tool->OptimalBVP(pos, vel, target_pt);
+        OBVPResult temp_obvp_result =
+            _homework_tool->OptimalBVP(pos, vel, target_pt);
+        Trajctory_Cost = temp_obvp_result.optimal_cost;
 
         // input the trajetory in the trajectory library
         TraLibrary[i][j][k] =
             new TrajectoryState(Position, Velocity, Trajctory_Cost);
 
         // if there is not any obstacle in the trajectory we need to set
-        // 'collision_check = true', so this trajectory is useable
+        // 'collision_check = true', so this trajectory is unusable
         if (collision)
           TraLibrary[i][j][k]->setCollisionfree();
 
         // record the min_cost in the trajectory Library, and this is the part
         // pf selecting the best trajectory cloest to the planning traget
-        if (Trajctory_Cost < min_Cost &&
-            TraLibrary[i][j][k]->collision_check == false) {
+        if (TraLibrary[i][j][k]->collision_check == true) {
+          continue;
+        }
+        if (first_flag == 0) {
+          first_flag = 1;
           a = i;
           b = j;
           c = k;
           min_Cost = Trajctory_Cost;
+          obvp_result = temp_obvp_result;
+        } else if (Trajctory_Cost < min_Cost) {
+          a = i;
+          b = j;
+          c = k;
+          min_Cost = Trajctory_Cost;
+          obvp_result = temp_obvp_result;
         }
       }
     }
   }
   TraLibrary[a][b][c]->setOptimal();
-  visTraLibrary(TraLibrary);
+  // reconstruct trajectory from tentacle end to target pos
+  Vector3d optimal_start_pos = TraLibrary[a][b][c]->Position.back();
+  Vector3d optimal_start_vel = TraLibrary[a][b][c]->Velocity.back();
+  vector<Vector3d> &final_traj = TraLibrary[a][b][c]->Position;
+  vector<Vector3d> optimal_states =
+      _homework_tool->reconstructOptimalTrajactory(
+          obvp_result, optimal_start_pos, optimal_start_vel, target_pt);
+  size_t tentacle_size = final_traj.size();
+  ROS_INFO("[TRAJ] optimal state size: %ld", optimal_states.size());
+  ROS_INFO("[TRAJ] original traj size: %ld", final_traj.size());
+  // final_traj.reserve(tentacle_size + optimal_states.size());
+  // final_traj.insert(final_traj.end(), optimal_states.begin(),
+  //                   optimal_states.end());
+  // ROS_INFO("[TRAJ] final traj size: %ld", final_traj.size());
+  // ROS_INFO("[TRAJ] real final traj size: %ld",
+  //          TraLibrary[a][b][c]->Position.size());
+  visTraLibrary(TraLibrary, optimal_states);
   return;
 }
 
@@ -282,7 +313,8 @@ int main(int argc, char **argv) {
   return 0;
 }
 
-void visTraLibrary(TrajectoryStatePtr ***TraLibrary) {
+void visTraLibrary(TrajectoryStatePtr ***TraLibrary,
+                   const vector<Vector3d> &optimal_states) {
   double _resolution = 0.2;
   visualization_msgs::MarkerArray LineArray;
   visualization_msgs::Marker Line;
@@ -340,4 +372,20 @@ void visTraLibrary(TrajectoryStatePtr ***TraLibrary) {
       }
     }
   }
+  // publish final states
+  Line.color.r = 0.5;
+  Line.color.g = 0.0;
+  Line.color.b = 0.5;
+  Line.color.a = 1.0;
+  Line.points.clear();
+  geometry_msgs::Point pt;
+  Line.id = marker_id;
+  for (const auto& coord: optimal_states) {
+    pt.x = coord(0);
+    pt.y = coord(1);
+    pt.z = coord(2);
+    Line.points.push_back(pt);
+  }
+  LineArray.markers.push_back(Line);
+  _path_vis_pub.publish(LineArray);
 }
