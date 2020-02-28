@@ -1,6 +1,11 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(grid_path_searcher)
 
+add_compile_options(-std=c++11)
+
+#set(CMAKE_CXXX_FLAGS "${CMAKE_CXX_FLAGS} -g" )
+SET(CMAKE_BUILD_TYPE Debug)
+
 find_package(catkin REQUIRED COMPONENTS 
     roscpp 
     std_msgs
@@ -26,7 +31,8 @@ include_directories(
     ${PCL_INCLUDE_DIRS}
 )
 
-set(CMAKE_CXX_FLAGS "-std=c++11 ${CMAKE_CXX_FLAGS} -O3 -Wall") # -Wextra -Werror
+set(CMAKE_CXX_FLAGS "-std=c++11 ${CMAKE_CXX_FLAGS} -O0 -Wall") # -Wextra -Werror
+# thei 3rd flag means optimization level, -03 is highest, -00 is lowest so it can be debugged!!!
 
 add_executable( demo_node 
     src/demo_node.cpp
