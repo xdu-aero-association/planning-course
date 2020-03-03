@@ -23,9 +23,9 @@ end
 ts(n_seg) = T - t_sum;
 
 % or you can simply set all time distribution as 1
-for i = 1:n_seg
-    ts(i) = 1.0;
-end
+% for i = 1:n_seg
+%     ts(i) = 1.0;
+% end
 
 poly_coef_x = MinimumSnapQPSolver(path(:, 1), ts, n_seg, n_order);
 poly_coef_y = MinimumSnapQPSolver(path(:, 2), ts, n_seg, n_order);
@@ -54,6 +54,7 @@ end
 plot(X_n, Y_n , 'Color', [0 1.0 0], 'LineWidth', 2);
 hold on
 scatter(path(1:size(path, 1), 1), path(1:size(path, 1), 2));
+axis equal
 
 function poly_coef = MinimumSnapQPSolver(waypoints, ts, n_seg, n_order)
     start_cond = [waypoints(1), 0, 0, 0];
