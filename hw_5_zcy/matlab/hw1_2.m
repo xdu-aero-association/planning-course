@@ -1,7 +1,7 @@
 clc;clear;close all;
 path = ginput() * 100.0;
 
-n_order = 7;
+n_order = 7; % in closed form sol, we have to set order as 7 to meet upto jerk(3rd order) continuity
 n_seg = size(path, 1) - 1;
 n_poly_perseg = n_order + 1;
 
