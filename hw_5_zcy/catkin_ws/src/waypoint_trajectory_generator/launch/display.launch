@@ -1,0 +1,5 @@
+<launch>
+
+  <node name="rvizvisualisation" pkg="rviz" type="rviz" output="log" args="-d $(find waypoint_trajectory_generator)/launch/rviz_config/test_traj.rviz" />
+
+</launch>
