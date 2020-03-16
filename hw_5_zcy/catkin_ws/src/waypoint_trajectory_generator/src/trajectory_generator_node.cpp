@@ -8,6 +8,8 @@
 #include <nav_msgs/Path.h>
 #include <nav_msgs/Odometry.h>
 #include <geometry_msgs/PoseStamped.h>
+#include <tf/tf.h>
+#include <geometry_msgs/Pose.h>
 #include <geometry_msgs/Point.h>
 #include <visualization_msgs/MarkerArray.h>
 #include <visualization_msgs/Marker.h>
@@ -24,7 +26,7 @@ using namespace Eigen;
 // Param from launch file
     double _vis_traj_width;
     double _Vel, _Acc;
-    int    _dev_order, _min_order;
+    int    _dev_order, _min_order, _dimension;
 
 // ros related
     ros::Subscriber _way_pts_sub;
@@ -34,8 +36,8 @@ using namespace Eigen;
     int _poly_num1D;
     MatrixXd _polyCoeff;
     VectorXd _polyTime;
-    Vector3d _startPos = Vector3d::Zero();
-    Vector3d _startVel = Vector3d::Zero();
+    VectorXd _startPos = VectorXd::Zero(3);
+    VectorXd _startVel = VectorXd::Zero(3);
 
 // declare
     void visWayPointTraj( MatrixXd polyCoeff, VectorXd time);
@@ -49,19 +51,31 @@ using namespace Eigen;
 void rcvWaypointsCallBack(const nav_msgs::Path & wp)
 {   
     ROS_WARN("[TG] waypoint received, size %d !!!", (int)wp.poses.size());
-    vector<Vector3d> wp_list;
+    vector<VectorXd> wp_list;
     wp_list.clear();
 
     for (int k = 0; k < (int)wp.poses.size(); k++)
     {
-        Vector3d pt( wp.poses[k].pose.position.x, wp.poses[k].pose.position.y, wp.poses[k].pose.position.z);
-        wp_list.push_back(pt);
+        if (_dimension == 3) {
+            VectorXd pt = VectorXd::Zero(3);
+            pt(0) = wp.poses[k].pose.position.x;
+            pt(1) = wp.poses[k].pose.position.y;
+            pt(2) = wp.poses[k].pose.position.z;
+            wp_list.emplace_back(pt);
+        } else if (_dimension == 4) {
+            VectorXd pt = VectorXd::Zero(4);
+            pt(0) = wp.poses[k].pose.position.x;
+            pt(1) = wp.poses[k].pose.position.y;
+            pt(2) = wp.poses[k].pose.position.z;
+            pt(3) = tf::getYaw(wp.poses[k].pose.orientation);
+            wp_list.emplace_back(pt);
+        }
 
         if(wp.poses[k].pose.position.z < 0.0)
             break;
     }
 
-    MatrixXd waypoints(wp_list.size() + 1, 3);
+    MatrixXd waypoints(wp_list.size() + 1, _dimension);
     waypoints.row(0) = _startPos;
     
     for(int k = 0; k < (int)wp_list.size(); k++)
@@ -77,8 +91,8 @@ void trajGeneration(Eigen::MatrixXd path)
     ROS_INFO("[TG] trajectory generating ...");
     TrajectoryGeneratorWaypoint  trajectoryGeneratorWaypoint;
     
-    MatrixXd vel = MatrixXd::Zero(2, 3); 
-    MatrixXd acc = MatrixXd::Zero(2, 3);
+    MatrixXd vel = MatrixXd::Zero(2, _dimension); 
+    MatrixXd acc = MatrixXd::Zero(2, _dimension);
 
     vel.row(0) = _startVel;
 
@@ -103,16 +117,19 @@ int main(int argc, char** argv)
     nh.param("planning/acc",   _Acc,   1.0 );
     nh.param("planning/dev_order", _dev_order,  3 );
     nh.param("planning/min_order", _min_order,  3 );
+    nh.param("planning/dimension", _dimension,  3 );
     nh.param("vis/vis_traj_width", _vis_traj_width, 0.15);
 
     //_poly_numID is the maximum order of polynomial
     _poly_num1D = 2 * _dev_order;
 
     //state of start point
+    _startPos = VectorXd::Zero(_dimension);
     _startPos(0)  = 0;
     _startPos(1)  = 0;
     _startPos(2)  = 0;    
 
+    _startVel = VectorXd::Zero(_dimension);
     _startVel(0)  = 0;
     _startVel(1)  = 0;
     _startVel(2)  = 0;

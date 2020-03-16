@@ -43,14 +43,14 @@ Eigen::MatrixXd TrajectoryGeneratorWaypoint::PolyQPGeneration(
     // enforce initial and final velocity and accleration, for higher order derivatives, just assume them be 0;
     int p_order   = 2 * d_order - 1;              // the order of polynomial
     int p_num1d   = p_order + 1;                  // the number of variables in each segment
-    int d_num = d_order;  // dimension of one point for close form sol.
+    int d_num = d_order;  // dimension of one point for close form sol. (>=3)
 
     int m = Time.size();                          // the number of segments
     MatrixXd PolyCoeff = MatrixXd::Zero(m, 3 * p_num1d);           // position(x,y,z), so we need (3 * p_num1d) coefficients
     VectorXd Px(p_num1d * m), Py(p_num1d * m), Pz(p_num1d * m);
     ROS_WARN("[TG] d_order: %d", d_order);
     /*   Produce Mapping Matrix A to the entire trajectory, A is a mapping matrix that maps polynomial coefficients to derivatives.   */
-    for (int idx = 0; idx < 3; ++idx) {
+    for (int idx = 0; idx < Path.cols(); ++idx) {
         ROS_WARN("[TG] calculating %d dimension trajectory", idx);
         VectorXd start_pose = VectorXd::Zero(d_num);
         start_pose(0) = Path(0, idx);
@@ -121,13 +121,13 @@ Eigen::MatrixXd TrajectoryGeneratorWaypoint::PolyQPGeneration(
                beq_wp,
                VectorXd::Zero(4*(m-1));
         ROS_WARN("[TG] concatenated Aeq & beq");
-    /*   Produce the dereivatives in X, Y and Z axis directly.  */
+    /*   Produce the derivatives in X, Y and Z axis directly.  */
         MatrixXd M = MatrixXd::Zero(2*(d_num)*m, p_num1d*m);
         for (int j = 0; j < m; ++j) {
             for (int k = 0; k < d_order; ++k) {
                 M(j*p_num1d+k, j*p_num1d+k) = Factorial(k);
                 for (int i = k; i <= p_order; ++i) {
-                    M(j*p_num1d+4+k, j*p_num1d+i) = Factorial(i) / Factorial(i-k) * pow(Time(j), i-k);
+                    M(j*p_num1d+d_num+k, j*p_num1d+i) = Factorial(i) / Factorial(i-k) * pow(Time(j), i-k);
                 }
             }
         }

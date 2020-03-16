@@ -187,7 +187,7 @@ void goal_callback(const geometry_msgs::PoseStamped::ConstPtr& msg) {
             ROS_WARN("[waypoint_generator] invalid goal in manual-lonely-waypoint mode.");
         }
     } else {
-        ROS_INFO("[WP] Manual mode, pose: %.3f, %.3f, %.3f", msg->pose.position.x, msg->pose.position.y, msg->pose.position.z);
+        ROS_INFO("[WP] Manual mode, pose: %.3f, %.3f, %.3f, %.3f", msg->pose.position.x, msg->pose.position.y, msg->pose.position.z, tf::getYaw(msg->pose.orientation));
         if (msg->pose.position.z >= 0) {
             // if height >= 0, it's a normal goal;
             geometry_msgs::PoseStamped pt = *msg;
