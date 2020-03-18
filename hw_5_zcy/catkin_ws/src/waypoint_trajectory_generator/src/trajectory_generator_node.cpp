@@ -101,6 +101,7 @@ void trajGeneration(Eigen::MatrixXd path)
 
     // generate a minimum-snap piecewise monomial polynomial-based trajectory
     _polyCoeff = trajectoryGeneratorWaypoint.PolyQPGeneration(_dev_order, path, vel, acc, _polyTime);
+    MatrixXd polyCoeff_temp = trajectoryGeneratorWaypoint.SolvebyOOQP(_dev_order, path, vel, acc, _polyTime);    
 
     visWayPointPath(path);
 
@@ -194,7 +195,7 @@ void visWayPointTraj( MatrixXd polyCoeff, VectorXd time)
           cur(1) = pt.y = pos(1);
           cur(2) = pt.z = pos(2);
           _traj_vis.points.push_back(pt);
-          std::cout << "pt [" << i << "] " << " " << cur(0) << " " << cur(1) << " " << cur(2) << std::endl;
+        //   std::cout << "pt [" << i << "] " << " " << cur(0) << " " << cur(1) << " " << cur(2) << std::endl;
 
           if (count) traj_len += (pre - cur).norm();
           pre = cur;

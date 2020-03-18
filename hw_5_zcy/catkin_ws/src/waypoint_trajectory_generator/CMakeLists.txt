@@ -21,6 +21,8 @@ endif()
 set(ADDITIONAL_CXX_FLAG "-Wall -O0 -march=native")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${ADDITIONAL_CXX_FLAG}")
 
+# find_package(ooqp REQUIRED)
+
 find_package(catkin REQUIRED COMPONENTS
   roscpp
   tf
@@ -43,5 +45,9 @@ add_executable(trajectory_generator_node
 )
 
 target_link_libraries(trajectory_generator_node
-   ${catkin_LIBRARIES}
+  ${catkin_LIBRARIES}
+  ooqpgensparse 
+  ooqpsparse 
+  ooqpgondzio 
+  ooqpbase blas ma27 gfortran f2c 
 )
