@@ -591,14 +591,14 @@ Eigen::MatrixXd TrajectoryGeneratorWaypoint::SolvebyOOQPwithEigen(
         double* cp   =  new double[nx]; //&ccopy.coeffRef(0);
         int* irowQ   =  new int[nnzQ]; //Q_triangular.innerIndexPtr(); // row indices for coln major
         int* jcolQ   =  new int[nnzQ]; //Q_triangular.outerIndexPtr(); // coln indices for coln major
-        double* dQ   =  Q_triangular.valuePtr();
+        double* dQ   =  new double[nnzQ]; //Q_triangular.valuePtr();
         double* xlow =  new double[nx]; //&lowerLimitForX.coeffRef(0);
         char* ixlow  =  new char[nx]; //&useLowerLimitForX.coeffRef(0);
         double* xupp =  new double[nx]; //&upperLimitForX.coeffRef(0);
         char* ixupp  =  new char[nx]; //&useUpperLimitForX.coeffRef(0);
         int* irowA   =  new int[nnzA]; //Aeq.innerIndexPtr(); // row indices for coln major
         int* jcolA   =  new int[nnzA]; //Aeq.outerIndexPtr(); // coln indices for coln major
-        double* dA   =  Aeq.valuePtr();
+        double* dA   =  new double[nnzA]; //Aeq.valuePtr();
         double* bA   = &beq.coeffRef(0);
         int* irowC   =  0; //Ccopy.outerIndexPtr();
         int* jcolC   =  0; //Ccopy.innerIndexPtr();
@@ -608,20 +608,27 @@ Eigen::MatrixXd TrajectoryGeneratorWaypoint::SolvebyOOQPwithEigen(
         double* cupp =  0; //&upperLimitForInequalityConstraints.coeffRef(0);
         char* icupp  =  0; //&useUpperLimitForInequalityConstraints.coeffRef(0);
 
+        // must sort all matrics (e.g. A, Q ...) into row-major forms!!!
+        // doubleLexSort( irowA, nnzA, jcolA, dA );
+
         // fill in indices
         int idx_Aeq = 0;
-        for (int i = 0; i < Aeq.outerSize(); ++i) {
-            for (EigenSparseIter it(Aeq, i); it; ++it) {
-                irowA[idx_Aeq] = it.row();
-                jcolA[idx_Aeq] = it.col();
+        EigenSparse Aeq_trans = Aeq.transpose();
+        for (int i = 0; i < Aeq_trans.outerSize(); ++i) {
+            for (EigenSparseIter it(Aeq_trans, i); it; ++it) {
+                irowA[idx_Aeq] = it.col();
+                jcolA[idx_Aeq] = it.row();
+                dA[idx_Aeq] = it.value();
                 idx_Aeq += 1;
             }
         }
         int idx_Q = 0;
-        for (int i = 0; i < Q_triangular.outerSize(); ++i) {
-            for (EigenSparseIter it(Q_triangular, i); it; ++it) {
-                irowQ[idx_Q] = it.row();
-                jcolQ[idx_Q] = it.col();
+        EigenSparse Q_tri_trans = Q_triangular.transpose();
+        for (int i = 0; i < Q_tri_trans.outerSize(); ++i) {
+            for (EigenSparseIter it(Q_tri_trans, i); it; ++it) {
+                irowQ[idx_Q] = it.col();
+                jcolQ[idx_Q] = it.row();
+                dQ[idx_Q] = it.value();
                 idx_Q += 1;
             }
         }
@@ -634,6 +641,22 @@ Eigen::MatrixXd TrajectoryGeneratorWaypoint::SolvebyOOQPwithEigen(
             ixupp[i] = 0;
         }
         ROS_INFO("[TG][OOQP] cp, xlow, ixlow, xupp, ixupp, all set to 0");
+
+        // test for transpose
+        // EigenSparse Aeq_trans = Aeq.transpose();
+        // LogData(Aeq_trans, "Aeqt");
+        // int idx_Aeqt = 0;
+        // int *irowAt = new int[nnzA];
+        // int *jcolAt = new int[nnzA];
+        // double *dAt = Aeq_trans.valuePtr();
+        // for (int i = 0; i < Aeq_trans.outerSize(); ++i) {
+        //     for (EigenSparseIter it(Aeq_trans, i); it; ++it) {
+        //         irowAt[idx_Aeqt] = it.row();
+        //         jcolAt[idx_Aeqt] = it.col();
+        //         idx_Aeqt += 1;
+        //     }
+        // }
+        // LogData(dAt, nnzA, irowAt, jcolAt, "dAt");
 
         // log datas
         LogData(dA, nnzA, irowA, jcolA, "dA");
