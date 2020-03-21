@@ -16,6 +16,7 @@
 #include <quadrotor_msgs/PolynomialTrajectory.h>
 #include <sensor_msgs/Joy.h>
 #include <algorithm>
+#include <ros/package.h>
 
 // Useful customized headers
 #include "trajectory_generator_waypoint.h"
@@ -90,6 +91,10 @@ void trajGeneration(Eigen::MatrixXd path)
 {
     ROS_INFO("[TG] trajectory generating ...");
     TrajectoryGeneratorWaypoint  trajectoryGeneratorWaypoint;
+
+    std::string package_path = ros::package::getPath("waypoint_trajectory_generator");
+    ROS_INFO("Package path: %s\n", package_path.c_str());
+    trajectoryGeneratorWaypoint.SetPackagePath(package_path);
     
     MatrixXd vel = MatrixXd::Zero(2, _dimension); 
     MatrixXd acc = MatrixXd::Zero(2, _dimension);
@@ -101,7 +106,8 @@ void trajGeneration(Eigen::MatrixXd path)
 
     // generate a minimum-snap piecewise monomial polynomial-based trajectory
     _polyCoeff = trajectoryGeneratorWaypoint.PolyQPGeneration(_dev_order, path, vel, acc, _polyTime);
-    MatrixXd polyCoeff_temp = trajectoryGeneratorWaypoint.SolvebyOOQP(_dev_order, path, vel, acc, _polyTime);    
+    // MatrixXd polyCoeff_temp = trajectoryGeneratorWaypoint.SolvebyOOQP(_dev_order, path, vel, acc, _polyTime);
+    MatrixXd polyCoeff_temp = trajectoryGeneratorWaypoint.SolvebyOOQPwithEigen(_dev_order, path, vel, acc, _polyTime);    
 
     visWayPointPath(path);
 
@@ -306,6 +312,7 @@ VectorXd timeAllocation( MatrixXd Path)
     The time allocation is many relative timeline but not one common timeline
 
     */
+   int type_time = 1; // 0: trapezoidal velocity, 1: equal to 1
    int num_seg = Path.rows() - 1;
     for (int i = 0; i < num_seg; ++i) {
         double delta_s = 0.0;
@@ -313,7 +320,11 @@ VectorXd timeAllocation( MatrixXd Path)
             delta_s += pow(Path(i,j) - Path(i+1,j), 2);
         }
         delta_s = sqrt(delta_s);
-        time(i) = delta_s / _Vel + _Vel / _Acc; // trapezoidal velocity
+        if (type_time == 0) {
+            time(i) = delta_s / _Vel + _Vel / _Acc; // trapezoidal velocity
+        } else {
+            time(i) = 1.0; // equal to 1
+        }
     }
     std::cout << "[TG] Time: ";
     for (int i = 0; i < num_seg; ++i) {

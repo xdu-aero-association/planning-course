@@ -23,7 +23,11 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${ADDITIONAL_CXX_FLAG}")
 
 # find_package(ooqp REQUIRED)
 
+# Find OSQP library and headers
+find_package(osqp REQUIRED)
+
 find_package(catkin REQUIRED COMPONENTS
+  roslib
   roscpp
   tf
   nav_msgs
@@ -46,8 +50,11 @@ add_executable(trajectory_generator_node
 
 target_link_libraries(trajectory_generator_node
   ${catkin_LIBRARIES}
+  # ooqp related links
   ooqpgensparse 
   ooqpsparse 
   ooqpgondzio 
   ooqpbase blas ma27 gfortran f2c 
+  # osqp related links
+  osqp::osqp
 )

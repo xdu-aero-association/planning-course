@@ -9,10 +9,15 @@ private:
   double _qp_cost;
   Eigen::MatrixXd _Q;
   Eigen::VectorXd _Px, _Py, _Pz;
+  std::string _package_path;
 public:
   TrajectoryGeneratorWaypoint();
 
   ~TrajectoryGeneratorWaypoint();
+
+  void SetPackagePath(const std::string& path) {
+      _package_path = path;
+  }
 
   Eigen::MatrixXd PolyQPGeneration(
       const int order,
@@ -92,7 +97,27 @@ public:
 
     int GetnnzA(const int n_seq, const int d_order);
 
+    Eigen::MatrixXd SolvebyOOQPwithEigen(
+            const int d_order,                    // the order of derivative
+            const Eigen::MatrixXd &Path,          // waypoints coordinates (3d)
+            const Eigen::MatrixXd &Vel,           // boundary velocity
+            const Eigen::MatrixXd &Acc,           // boundary acceleration
+            const Eigen::VectorXd &Time);          // time allocation in each segment
 
+    void GenContinuityConstraint(
+        const int n_seq, 
+        const int d_order, 
+        const Eigen::VectorXd &Time, 
+        const int order_deri, 
+        Eigen::SparseMatrix<double, Eigen::ColMajor>& Aeq_con);
+
+    void LogData(const Eigen::MatrixXd& result, const std::string file_name);
+    void LogData(const Eigen::VectorXd& result, const std::string file_name);
+    void LogData(const Eigen::SparseMatrix<double, Eigen::ColMajor>& result, const std::string file_name);
+    void LogData(const double data[], const int size, const int idices[], const std::string file_name);
+    void LogData(const double data[], const int size, const int rows[], const int cols[], const std::string file_name);
+    void LogData(const int data[], const int size, const int idices[], const std::string file_name);
+    void LogData(const int data[], const int size, const int rows[], const int cols[], const std::string file_name);
 };
         
 
