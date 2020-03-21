@@ -105,9 +105,13 @@ void trajGeneration(Eigen::MatrixXd path)
     _polyTime  = timeAllocation(path);
 
     // generate a minimum-snap piecewise monomial polynomial-based trajectory
-    _polyCoeff = trajectoryGeneratorWaypoint.PolyQPGeneration(_dev_order, path, vel, acc, _polyTime);
-    // MatrixXd polyCoeff_temp = trajectoryGeneratorWaypoint.SolvebyOOQP(_dev_order, path, vel, acc, _polyTime);
-    MatrixXd polyCoeff_temp = trajectoryGeneratorWaypoint.SolvebyOOQPwithEigen(_dev_order, path, vel, acc, _polyTime);    
+    bool method_switch = 1;
+    if (method_switch == 0) {
+        _polyCoeff = trajectoryGeneratorWaypoint.PolyQPGeneration(_dev_order, path, vel, acc, _polyTime);
+    } else {
+        // MatrixXd polyCoeff_temp = trajectoryGeneratorWaypoint.SolvebyOOQP(_dev_order, path, vel, acc, _polyTime);
+        _polyCoeff = trajectoryGeneratorWaypoint.SolvebyOOQPwithEigen(_dev_order, path, vel, acc, _polyTime);    
+    }
 
     visWayPointPath(path);
 
@@ -312,7 +316,7 @@ VectorXd timeAllocation( MatrixXd Path)
     The time allocation is many relative timeline but not one common timeline
 
     */
-   int type_time = 1; // 0: trapezoidal velocity, 1: equal to 1
+   int type_time = 0; // 0: trapezoidal velocity, 1: equal to 1
    int num_seg = Path.rows() - 1;
     for (int i = 0; i < num_seg; ++i) {
         double delta_s = 0.0;
