@@ -104,6 +104,17 @@ public:
             const Eigen::MatrixXd &Acc,           // boundary acceleration
             const Eigen::VectorXd &Time);          // time allocation in each segment
 
+    Eigen::VectorXd OOQPSolver(
+        const Eigen::SparseMatrix<double, Eigen::ColMajor>& Q,
+        const Eigen::SparseMatrix<double, Eigen::ColMajor>& Aeq,
+        const Eigen::VectorXd& beq);
+
+    Eigen::VectorXd OSQPSolver(
+        const Eigen::SparseMatrix<double, Eigen::ColMajor>& Q,
+        const Eigen::SparseMatrix<double, Eigen::ColMajor>& A,
+        const Eigen::VectorXd& lower_l,
+        const Eigen::VectorXd& upper_l);
+
     void GenContinuityConstraint(
         const int n_seq, 
         const int d_order, 

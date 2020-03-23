@@ -18,6 +18,9 @@
 #include <Eigen/Core>
 #include <Eigen/SparseCore>
 
+// osqp related headers
+#include "osqp.h"
+
 using namespace std;    
 using namespace Eigen;
 
@@ -571,147 +574,16 @@ Eigen::MatrixXd TrajectoryGeneratorWaypoint::SolvebyOOQPwithEigen(
         LogData(Q, "Q");
         ROS_INFO("[TG] cal Q done, size: %ld, %ld", Q.rows(), Q.cols());
         // std::cout << Q << std::endl << std::endl;
-        // Make sure Q is in lower triangular form (Q is symmetric).
-        EigenSparse Q_triangular = Q.triangularView<Lower>();
-        // Compress sparse Eigen matrices (refer to Eigen Sparse Matrix user manual).
-        Q_triangular.makeCompressed();
-        LogData(Q_triangular, "Q_tri");
-        
-        // ooqp related tasks
-        ROS_INFO("[TG][OOQP] data prep");
-        // fill in data for ooqp
-        int nnzA = Aeq.nonZeros();
-        int nnzQ = Q_triangular.nonZeros();
-        int nnzC = 0;
-        int my = beq.rows();
-        int mz = 0;
-        int nx = Q.rows(); // n_all_poly
-        ROS_WARN("[TG][OOQP] nnzA:%d, nnzQ:%d, nnzC:%d, my:%d, mz:%d, nx:%d",nnzA,nnzQ,nnzC,my,mz,nx);
 
-        double* cp   =  new double[nx]; //&ccopy.coeffRef(0);
-        int* irowQ   =  new int[nnzQ]; //Q_triangular.innerIndexPtr(); // row indices for coln major
-        int* jcolQ   =  new int[nnzQ]; //Q_triangular.outerIndexPtr(); // coln indices for coln major
-        double* dQ   =  new double[nnzQ]; //Q_triangular.valuePtr();
-        double* xlow =  new double[nx]; //&lowerLimitForX.coeffRef(0);
-        char* ixlow  =  new char[nx]; //&useLowerLimitForX.coeffRef(0);
-        double* xupp =  new double[nx]; //&upperLimitForX.coeffRef(0);
-        char* ixupp  =  new char[nx]; //&useUpperLimitForX.coeffRef(0);
-        int* irowA   =  new int[nnzA]; //Aeq.innerIndexPtr(); // row indices for coln major
-        int* jcolA   =  new int[nnzA]; //Aeq.outerIndexPtr(); // coln indices for coln major
-        double* dA   =  new double[nnzA]; //Aeq.valuePtr();
-        double* bA   = &beq.coeffRef(0);
-        int* irowC   =  0; //Ccopy.outerIndexPtr();
-        int* jcolC   =  0; //Ccopy.innerIndexPtr();
-        double* dC   =  0; //Ccopy.valuePtr();
-        double* clow =  0; //&lowerLimitForInequalityConstraints.coeffRef(0);
-        char* iclow  =  0; //&useLowerLimitForInequalityConstraints.coeffRef(0);
-        double* cupp =  0; //&upperLimitForInequalityConstraints.coeffRef(0);
-        char* icupp  =  0; //&useUpperLimitForInequalityConstraints.coeffRef(0);
-
-        // must sort all matrics (e.g. A, Q ...) into row-major forms!!!
-        // doubleLexSort( irowA, nnzA, jcolA, dA );
-
-        // fill in indices
-        int idx_Aeq = 0;
-        EigenSparse Aeq_trans = Aeq.transpose();
-        for (int i = 0; i < Aeq_trans.outerSize(); ++i) {
-            for (EigenSparseIter it(Aeq_trans, i); it; ++it) {
-                irowA[idx_Aeq] = it.col();
-                jcolA[idx_Aeq] = it.row();
-                dA[idx_Aeq] = it.value();
-                idx_Aeq += 1;
-            }
-        }
-        int idx_Q = 0;
-        EigenSparse Q_tri_trans = Q_triangular.transpose();
-        for (int i = 0; i < Q_tri_trans.outerSize(); ++i) {
-            for (EigenSparseIter it(Q_tri_trans, i); it; ++it) {
-                irowQ[idx_Q] = it.col();
-                jcolQ[idx_Q] = it.row();
-                dQ[idx_Q] = it.value();
-                idx_Q += 1;
-            }
-        }
-        ROS_INFO("[TG][OOQP] idx_Aeq: %d, idx_Q: %d", idx_Aeq, idx_Q);
-        for (int i = 0; i < nx; ++i) {
-            cp[i] = 0;
-            xlow[i] = 0;
-            ixlow[i] = 0;
-            xupp[i] = 0;
-            ixupp[i] = 0;
-        }
-        ROS_INFO("[TG][OOQP] cp, xlow, ixlow, xupp, ixupp, all set to 0");
-
-        // test for transpose
-        // EigenSparse Aeq_trans = Aeq.transpose();
-        // LogData(Aeq_trans, "Aeqt");
-        // int idx_Aeqt = 0;
-        // int *irowAt = new int[nnzA];
-        // int *jcolAt = new int[nnzA];
-        // double *dAt = Aeq_trans.valuePtr();
-        // for (int i = 0; i < Aeq_trans.outerSize(); ++i) {
-        //     for (EigenSparseIter it(Aeq_trans, i); it; ++it) {
-        //         irowAt[idx_Aeqt] = it.row();
-        //         jcolAt[idx_Aeqt] = it.col();
-        //         idx_Aeqt += 1;
-        //     }
-        // }
-        // LogData(dAt, nnzA, irowAt, jcolAt, "dAt");
-
-        // log datas
-        LogData(dA, nnzA, irowA, jcolA, "dA");
-        int krowb[my] = {0};
-        LogData(bA, my, krowb, "bA_" + std::to_string(idx));
-        LogData(dQ, nnzQ, irowQ, jcolQ, "dQ");
-
-        bool solver_flag = 1;
-        bool monitor_flag = 0;
-        int status = 0;
-        VectorXd coeff(nx);
-        if (solver_flag == 1) {
-            QpGenSparseMa27 * qp = new QpGenSparseMa27(nx, my, mz, nnzQ, nnzA, nnzC);
-
-            // QpGenData * prob = (QpGenData *) qp->makeData(cp, irowQ, jcolQ, dQ,
-            //                                         xlow, ixlow, xupp, ixupp,
-            //                                         irowA, jcolA, dA, bA,
-            //                                         irowC, jcolC, dC,
-            //                                         clow, iclow, cupp, icupp);
-            QpGenData * prob = (QpGenData *) qp->copyDataFromSparseTriple(
-                                                    cp, irowQ, nnzQ, jcolQ, dQ,
-                                                    xlow, ixlow, xupp, ixupp,
-                                                    irowA, nnzA, jcolA, dA, bA,
-                                                    irowC, nnzC, jcolC, dC, 
-                                                    clow, iclow, cupp, icupp);
-            // Create object to store problem variables.
-            QpGenVars* vars = (QpGenVars*) qp->makeVariables(prob);
-
-            // Create object to store problem residual data.
-            QpGenResiduals* resid = (QpGenResiduals*) qp->makeResiduals(prob);
-
-            // Create solver object.
-            GondzioSolver* s = new GondzioSolver(qp, prob);
-
-            // monitor itself
-            if (monitor_flag == 1) {
-                s->monitorSelf();
-            }
-
-            // Solve.
-            status = s->solve(prob, vars, resid);
-
-            if ((status == 0)) {
-                vars->x->copyIntoArray(&coeff.coeffRef(0));
-                ROS_WARN("[TG][OOQP] Solved !!!");
-                // std::cout << coeff << std::endl << std::endl;
-            }
-            else if( status == 3)
-                std::cout << "The program is probably infeasible, check the formulation.\n";
-            else if (status == 4)
-                std::cout << "Ther program is very slow in convergence, may have numerical issue.\n";
-            else
-                std::cout << "Don't know what the fuck it is, should not happen.\n";
+        int solver_selection = 1;
+        Eigen::VectorXd coeff;
+        if (solver_selection == 0) {
+            // solve using OOQP
+            coeff = OOQPSolver(Q, Aeq, beq);
         } else {
-
+            auto lower_l(beq);
+            auto upper_l(beq);
+            coeff = OSQPSolver(Q, Aeq, lower_l, upper_l);
         }
 
         for (int j = 0; j < m; ++j) {
@@ -719,18 +591,346 @@ Eigen::MatrixXd TrajectoryGeneratorWaypoint::SolvebyOOQPwithEigen(
             std::cout << "seg [" << j << "]" << std::endl;
             std::cout << PolyCoeff.block(j, idx*p_num1d, 1, p_num1d) << std::endl << std::endl;
         }
-
-        delete [] irowA;
-        delete [] jcolA;
-        delete [] irowQ;
-        delete [] jcolQ;
-        delete [] xlow;
-        delete [] ixlow;
-        delete [] xupp;
-        delete [] ixupp;
     }
     LogData(PolyCoeff, "ooqp_result");
     return PolyCoeff;
+}
+
+Eigen::VectorXd TrajectoryGeneratorWaypoint::OOQPSolver(
+        const Eigen::SparseMatrix<double, Eigen::ColMajor>& Q,
+        const Eigen::SparseMatrix<double, Eigen::ColMajor>& Aeq,
+        const Eigen::VectorXd& beq) {
+
+    // we are using eigen's sparse matrix 
+    typedef Eigen::SparseMatrix<double, Eigen::ColMajor> EigenSparse;
+    typedef Eigen::SparseMatrix<double, Eigen::ColMajor>::InnerIterator EigenSparseIter;
+    // Make sure Q is in lower triangular form (Q is symmetric).
+    EigenSparse Q_triangular = Q.triangularView<Lower>();
+    // Compress sparse Eigen matrices (refer to Eigen Sparse Matrix user manual).
+    Q_triangular.makeCompressed();
+    LogData(Q_triangular, "Q_tri");
+    // make copy
+    auto beq_copy(beq);
+    
+    // ooqp related tasks
+    ROS_INFO("[TG][OOQP] data prep");
+    // fill in data for ooqp
+    int nnzA = Aeq.nonZeros();
+    int nnzQ = Q_triangular.nonZeros();
+    int nnzC = 0;
+    int my = beq.rows();
+    int mz = 0;
+    int nx = Q.rows(); // n_all_poly
+    ROS_WARN("[TG][OOQP] nnzA:%d, nnzQ:%d, nnzC:%d, my:%d, mz:%d, nx:%d",nnzA,nnzQ,nnzC,my,mz,nx);
+
+    double* cp   =  new double[nx]; //&ccopy.coeffRef(0);
+    int* irowQ   =  new int[nnzQ]; //Q_triangular.innerIndexPtr(); // row indices for coln major
+    int* jcolQ   =  new int[nnzQ]; //Q_triangular.outerIndexPtr(); // coln indices for coln major
+    double* dQ   =  new double[nnzQ]; //Q_triangular.valuePtr();
+    double* xlow =  new double[nx]; //&lowerLimitForX.coeffRef(0);
+    char* ixlow  =  new char[nx]; //&useLowerLimitForX.coeffRef(0);
+    double* xupp =  new double[nx]; //&upperLimitForX.coeffRef(0);
+    char* ixupp  =  new char[nx]; //&useUpperLimitForX.coeffRef(0);
+    int* irowA   =  new int[nnzA]; //Aeq.innerIndexPtr(); // row indices for coln major
+    int* jcolA   =  new int[nnzA]; //Aeq.outerIndexPtr(); // coln indices for coln major
+    double* dA   =  new double[nnzA]; //Aeq.valuePtr();
+    double* bA   = &beq_copy.coeffRef(0);
+    int* irowC   =  0; //Ccopy.outerIndexPtr();
+    int* jcolC   =  0; //Ccopy.innerIndexPtr();
+    double* dC   =  0; //Ccopy.valuePtr();
+    double* clow =  0; //&lowerLimitForInequalityConstraints.coeffRef(0);
+    char* iclow  =  0; //&useLowerLimitForInequalityConstraints.coeffRef(0);
+    double* cupp =  0; //&upperLimitForInequalityConstraints.coeffRef(0);
+    char* icupp  =  0; //&useUpperLimitForInequalityConstraints.coeffRef(0);
+
+    // must sort all matrics (e.g. A, Q ...) into row-major forms!!!
+    // doubleLexSort( irowA, nnzA, jcolA, dA );
+
+    // fill in indices
+    int idx_Aeq = 0;
+    EigenSparse Aeq_trans = Aeq.transpose();
+    for (int i = 0; i < Aeq_trans.outerSize(); ++i) {
+        for (EigenSparseIter it(Aeq_trans, i); it; ++it) {
+            irowA[idx_Aeq] = it.col();
+            jcolA[idx_Aeq] = it.row();
+            dA[idx_Aeq] = it.value();
+            idx_Aeq += 1;
+        }
+    }
+    int idx_Q = 0;
+    EigenSparse Q_tri_trans = Q_triangular.transpose();
+    for (int i = 0; i < Q_tri_trans.outerSize(); ++i) {
+        for (EigenSparseIter it(Q_tri_trans, i); it; ++it) {
+            irowQ[idx_Q] = it.col();
+            jcolQ[idx_Q] = it.row();
+            dQ[idx_Q] = it.value();
+            idx_Q += 1;
+        }
+    }
+    ROS_INFO("[TG][OOQP] idx_Aeq: %d, idx_Q: %d", idx_Aeq, idx_Q);
+    for (int i = 0; i < nx; ++i) {
+        cp[i] = 0;
+        xlow[i] = 0;
+        ixlow[i] = 0;
+        xupp[i] = 0;
+        ixupp[i] = 0;
+    }
+    ROS_INFO("[TG][OOQP] cp, xlow, ixlow, xupp, ixupp, all set to 0");
+
+    // test for transpose
+    // EigenSparse Aeq_trans = Aeq.transpose();
+    // LogData(Aeq_trans, "Aeqt");
+    // int idx_Aeqt = 0;
+    // int *irowAt = new int[nnzA];
+    // int *jcolAt = new int[nnzA];
+    // double *dAt = Aeq_trans.valuePtr();
+    // for (int i = 0; i < Aeq_trans.outerSize(); ++i) {
+    //     for (EigenSparseIter it(Aeq_trans, i); it; ++it) {
+    //         irowAt[idx_Aeqt] = it.row();
+    //         jcolAt[idx_Aeqt] = it.col();
+    //         idx_Aeqt += 1;
+    //     }
+    // }
+    // LogData(dAt, nnzA, irowAt, jcolAt, "dAt");
+
+    // log datas
+    LogData(dA, nnzA, irowA, jcolA, "dA");
+    int krowb[my] = {0};
+    // LogData(bA, my, krowb, "bA_" + std::to_string(idx));
+    LogData(dQ, nnzQ, irowQ, jcolQ, "dQ");
+
+    bool monitor_flag = 0;
+    int status = 0;
+    VectorXd coeff(nx);
+
+    QpGenSparseMa27 * qp = new QpGenSparseMa27(nx, my, mz, nnzQ, nnzA, nnzC);
+
+    // QpGenData * prob = (QpGenData *) qp->makeData(cp, irowQ, jcolQ, dQ,
+    //                                         xlow, ixlow, xupp, ixupp,
+    //                                         irowA, jcolA, dA, bA,
+    //                                         irowC, jcolC, dC,
+    //                                         clow, iclow, cupp, icupp);
+    QpGenData * prob = (QpGenData *) qp->copyDataFromSparseTriple(
+                                            cp, irowQ, nnzQ, jcolQ, dQ,
+                                            xlow, ixlow, xupp, ixupp,
+                                            irowA, nnzA, jcolA, dA, bA,
+                                            irowC, nnzC, jcolC, dC, 
+                                            clow, iclow, cupp, icupp);
+    // Create object to store problem variables.
+    QpGenVars* vars = (QpGenVars*) qp->makeVariables(prob);
+
+    // Create object to store problem residual data.
+    QpGenResiduals* resid = (QpGenResiduals*) qp->makeResiduals(prob);
+
+    // Create solver object.
+    GondzioSolver* s = new GondzioSolver(qp, prob);
+
+    // monitor itself
+    if (monitor_flag == 1) {
+        s->monitorSelf();
+    }
+
+    // Solve.
+    status = s->solve(prob, vars, resid);
+
+    if ((status == 0)) {
+        vars->x->copyIntoArray(&coeff.coeffRef(0));
+        ROS_WARN("[TG][OOQP] Solved !!!");
+        // std::cout << coeff << std::endl << std::endl;
+    }
+    else if( status == 3)
+        std::cout << "The program is probably infeasible, check the formulation.\n";
+    else if (status == 4)
+        std::cout << "Ther program is very slow in convergence, may have numerical issue.\n";
+    else
+        std::cout << "Don't know what the fuck it is, should not happen.\n";
+
+    delete [] irowA;
+    delete [] jcolA;
+    delete [] irowQ;
+    delete [] jcolQ;
+    delete [] xlow;
+    delete [] ixlow;
+    delete [] xupp;
+    delete [] ixupp;
+
+    delete s;
+    delete resid;
+    delete vars;
+    delete prob;
+    delete qp;
+
+    return coeff;
+}
+
+Eigen::VectorXd TrajectoryGeneratorWaypoint::OSQPSolver(
+        const Eigen::SparseMatrix<double, Eigen::ColMajor>& Q,
+        const Eigen::SparseMatrix<double, Eigen::ColMajor>& A,
+        const Eigen::VectorXd& lower_l,
+        const Eigen::VectorXd& upper_l) {
+
+    // we are using eigen's sparse matrix 
+    typedef Eigen::SparseMatrix<double, Eigen::ColMajor> EigenSparse;
+    typedef Eigen::SparseMatrix<double, Eigen::ColMajor>::InnerIterator EigenSparseIter;        
+    // Make sure Q is in upper triangular form (Q is symmetric)(note osqp is different with ooqp!!!).
+    EigenSparse Q_triangular = Q.triangularView<Upper>();
+    // Compress sparse Eigen matrices (refer to Eigen Sparse Matrix user manual).
+    Q_triangular.makeCompressed();
+    LogData(Q_triangular, "Q_tri");
+    // make copy
+    auto Acopy(A);
+    auto l_copy(lower_l), u_copy(upper_l);
+    
+    // osqp related tasks
+    ROS_INFO("[TG][OSQP] data prep");
+    // Load problem data
+    c_int   n    = Q.rows(); // n_all_poly
+    c_int   m    = A.rows(); // number of all constrains(eq & uneql)
+    c_int   P_nnz= Q_triangular.nonZeros(); // maximum number of entries(non zero elements)
+    c_float *P_x = Q_triangular.valuePtr(); // entries' values
+    c_int   *P_i = new c_int[P_nnz]; // row indices in column major, size nzmax starting from 0
+    c_int   *P_p = new c_int[n+1]; // column start indices(ptrs) in P_i, the last element is number of non-zeros
+    c_float *q   = new c_float[n]; // dense array for linear part of cost function (size n)
+    c_int   A_nnz= A.nonZeros();
+    c_float *A_x = Acopy.valuePtr(); // entries' values
+    c_int   *A_i = new c_int[A_nnz];
+    c_int   *A_p = new c_int[n+1];
+    c_float *l   = &l_copy.coeffRef(0); //new c_float[m]; // dense array for lower bound (size m)
+    c_float *u   = &u_copy.coeffRef(0); //new c_float[m]; // dense array for lower bound (size m)
+    ROS_WARN("[TG][OSQP] A_nnz:%lld, P_nnz:%lld, m:%lld, n:%lld",A_nnz,P_nnz,m,n);
+
+    // fill in indices
+    for (c_int i = 0; i < P_nnz; ++i) {
+        P_i[i] = Q_triangular.innerIndexPtr()[i];
+    }
+    for (c_int i = 0; i < n; ++i) {
+        P_p[i] = Q_triangular.outerIndexPtr()[i];
+    }
+    P_p[n] = P_nnz;
+
+    for (c_int i = 0; i < A_nnz; ++i) {
+        A_i[i] = A.innerIndexPtr()[i];
+    }
+    for (c_int i = 0; i < n; ++i) {
+        A_p[i] = A.outerIndexPtr()[i];
+    }
+    A_p[n] = A_nnz;
+
+    for (c_int i = 0; i < n; ++i) {
+        q[i] = 0.0;
+    }
+
+    // log datas
+    int *P_i_int = new int[P_nnz];
+    std::copy(P_i, P_i + P_nnz, P_i_int);
+    LogData(P_x, P_nnz, P_i_int, "P_x");
+    int *P_p_int = new int[n+1];
+    std::copy(P_p, P_p + n + 1, P_p_int);
+    int P_p_indices[n+1] = {0};
+    LogData(P_p_int, n+1, P_p_indices, "P_p");
+    int *A_i_int = new int[A_nnz];
+    std::copy(A_i, A_i + A_nnz, A_i_int);
+    LogData(A_x, A_nnz, A_i_int, "A_x");
+    int *A_p_int = new int[n+1];
+    std::copy(A_p, A_p + n + 1, A_p_int);
+    int A_p_indices[n+1] = {0};
+    LogData(A_p_int, n+1, A_p_indices, "A_p");
+    delete [] P_i_int;
+    delete [] P_p_int;
+    delete [] A_i_int;
+    delete [] A_p_int;
+
+    /*
+    // create triplet csc matrix
+    ROS_INFO("[TG][OSQP] Creating Triplets");
+    csc *A_triplet = csc_spalloc(m, n, A_nnz, 0, 0);
+    c_int idx_A = 0;
+    c_int *ATtoC = new c_int[A_nnz];
+    A_triplet->i = new c_int[A_nnz];
+    A_triplet->p = new c_int[A_nnz];
+    A_triplet->x = new c_float[A_nnz];
+    EigenSparse A_trans = A.transpose();
+    for (c_int i = 0; i < A_trans.outerSize(); ++i) {
+        for (EigenSparseIter it(A_trans, i); it; ++it) {
+            A_triplet->i[idx_A] = it.row();
+            A_triplet->p[idx_A] = it.col();
+            A_triplet->x[idx_A] = it.value();
+            ATtoC[idx_A] = idx_A;
+            idx_A += 1;
+            // ROS_INFO("[TG][OSQP] idx_A: %lld", idx_A);
+        }
+    }
+    csc *Q_triplet = csc_spalloc(n, n, P_nnz, 1, 0);
+    c_int idx_Q = 0;
+    c_int *QTtoC = new c_int[P_nnz];
+    Q_triplet->i = new c_int[P_nnz];
+    Q_triplet->p = new c_int[P_nnz];
+    Q_triplet->x = new c_float[P_nnz];
+    EigenSparse Q_trans = Q_triangular.transpose();
+    for (c_int i = 0; i < Q_trans.outerSize(); ++i) {
+        for (EigenSparseIter it(Q_trans, i); it; ++it) {
+            Q_triplet->i[idx_Q] = it.row();
+            Q_triplet->p[idx_Q] = it.col();
+            Q_triplet->x[idx_Q] = it.value();
+            QTtoC[idx_Q] = idx_Q;
+            idx_Q += 1;
+            // ROS_INFO("[TG][OSQP] idx_Q: %lld", idx_Q);
+        }
+    }
+    ROS_WARN("[TG][OSQP] idx_A: %lld, idx_Q: %lld", idx_A, idx_Q);
+    csc *A_csc = triplet_to_csc(A_triplet, ATtoC);
+    csc *Q_csc = triplet_to_csc(Q_triplet, QTtoC);
+    delete [] ATtoC;
+    delete [] QTtoC;
+    */
+
+    // Exitflag
+    c_int exitflag = 0;
+
+    // Workspace structures
+    OSQPWorkspace *work;
+    OSQPSettings  *settings = (OSQPSettings *)c_malloc(sizeof(OSQPSettings));
+    OSQPData      *data     = (OSQPData *)c_malloc(sizeof(OSQPData));
+
+    // Populate data
+    if (data) {
+        data->n = n; // number of columns
+        data->m = m; // number of rows
+        data->P = csc_matrix(data->n, data->n, P_nnz, P_x, P_i, P_p); // csc stands for "Compressd Column", csr for "Compressd Row"
+        data->q = q;
+        data->A = csc_matrix(data->m, data->n, A_nnz, A_x, A_i, A_p);
+        data->l = l;
+        data->u = u;
+    }
+
+    // Define solver settings as default
+    if (settings) osqp_set_default_settings(settings);
+
+    // Setup workspace
+    exitflag = osqp_setup(&work, data, settings);
+    if (exitflag != 0) {
+        ROS_ERROR("[TG][OSQP] Setup Failed !!!!!!");
+    } else {
+        ROS_INFO("[TG][OSQP] Setup Sucessful");
+    }
+
+    // Solve Problem
+    osqp_solve(work);
+
+    // copy data from an array to Eigen vector
+    c_float* solution = work->solution->x;
+    VectorXd coeff = Eigen::Map<Eigen::VectorXd>(solution, work->data->n, 1);
+
+    // Clean workspace
+    osqp_cleanup(work);
+    if (data) {
+        if (data->A) c_free(data->A);
+        if (data->P) c_free(data->P);
+        c_free(data);
+    }
+    if (settings)  c_free(settings);
+
+    return coeff;
 }
 
 void TrajectoryGeneratorWaypoint::GenContinuityConstraint(
