@@ -297,7 +297,7 @@ void AstarPathFinder::AstarGraphSearch(Vector3d start_pt, Vector3d end_pt) {
       */
       neighborPtr = neighborPtrSets[i];
       double gScore = currentPtr->gScore + edgeCostSets[i];
-      double hScore = getHeu(currentPtr, neighborPtr);
+      double hScore = getHeu(neighborPtr, endPtr);
       // hScore = 0;
       // neighborPtr->fScore = gScore + hScore;
       if (neighborPtr->id == -1) { // discover a new node, which is not in the

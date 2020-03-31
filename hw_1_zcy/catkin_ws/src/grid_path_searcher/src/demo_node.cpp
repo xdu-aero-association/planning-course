@@ -122,7 +122,7 @@ void pathFinding(const Vector3d start_pt, const Vector3d target_pt) {
 //_use_jps = 0 -> Do not use JPS
 //_use_jps = 1 -> Use JPS
 // you just need to change the #define value of _use_jps
-#define _use_jps 0
+#define _use_jps 1
 #if _use_jps
   {
     // Call JPS to search for a path
@@ -219,11 +219,11 @@ void visGridPath(vector<Vector3d> nodes, bool is_use_jps) {
     node_vis.color.a = 1.0;
     node_vis.color.r = 1.0;
     node_vis.color.g = 0.0;
-    node_vis.color.b = 0.0;
+    node_vis.color.b = 1.0;
   } else {
     node_vis.color.a = 1.0;
     node_vis.color.r = 0.0;
-    node_vis.color.g = 1.0;
+    node_vis.color.g = 0.1;
     node_vis.color.b = 0.0;
   }
 
@@ -239,6 +239,46 @@ void visGridPath(vector<Vector3d> nodes, bool is_use_jps) {
     pt.z = coord(2);
 
     node_vis.points.push_back(pt);
+    // we are filling blanks btwn two straight nodes for JPS
+    if (i < int(nodes.size() - 1)) {
+      geometry_msgs::Point pt1;
+      coord = nodes[i+1];
+      pt1.x = coord(0);
+      pt1.y = coord(1);
+      pt1.z = coord(2);
+      // at least a one node blank >= _resolution * 2 for (x/y/z) direction
+      // if (fabs(pt1.x - pt.x) > _resolution * 1.9) {
+      //   int num = ceil(fabs((pt1.x - pt.x) / _resolution));
+      //   double delta = (pt1.x - pt.x) / num;
+      //   for (int j = 0; j < num; ++j) {
+      //     geometry_msgs::Point pt2;
+      //     pt1.x = pt.x + delta * j;
+      //     pt1.y = pt.y;
+      //     pt1.z = pt.z;
+      //     node_vis.points.push_back(pt1);
+      //   }
+      // } else if (fabs(pt1.y - pt.y) > _resolution * 1.9) {
+      //   int num = ceil(fabs((pt1.y - pt.y) / _resolution));
+      //   double delta = (pt1.y - pt.y) / num;
+      //   for (int j = 0; j < num; ++j) {
+      //     geometry_msgs::Point pt2;
+      //     pt1.x = pt.x;
+      //     pt1.y = pt.y + delta * j;
+      //     pt1.z = pt.z;
+      //     node_vis.points.push_back(pt1);
+      //   }
+      // } else if (fabs(pt1.z - pt.z) > _resolution * 1.9) {
+      //   int num = ceil(fabs((pt1.z - pt.z) / _resolution));
+      //   double delta = (pt1.z - pt.z) / num;
+      //   for (int j = 0; j < num; ++j) {
+      //     geometry_msgs::Point pt2;
+      //     pt1.x = pt.x;
+      //     pt1.y = pt.y;
+      //     pt1.z = pt.z + delta * j;
+      //     node_vis.points.push_back(pt1);
+      //   }
+      // }
+    }
   }
 
   _grid_path_vis_pub.publish(node_vis);

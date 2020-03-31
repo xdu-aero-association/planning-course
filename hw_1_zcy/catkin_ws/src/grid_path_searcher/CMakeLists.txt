@@ -1,5 +1,10 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(grid_path_searcher)
+add_compile_options(-std=c++11)
+
+# Set compile option for debug
+#set(CMAKE_CXXX_FLAGS "${CMAKE_CXX_FLAGS} -g" )
+SET(CMAKE_BUILD_TYPE Debug)
 
 find_package(catkin REQUIRED COMPONENTS 
     roscpp 
@@ -26,7 +31,7 @@ include_directories(
     ${PCL_INCLUDE_DIRS}
 )
 
-set(CMAKE_CXX_FLAGS "-std=c++11 ${CMAKE_CXX_FLAGS} -O3 -Wall") # -Wextra -Werror
+set(CMAKE_CXX_FLAGS "-std=c++11 ${CMAKE_CXX_FLAGS} -O0 -Wall") # -Wextra -Werror
 
 add_executable( demo_node 
     src/demo_node.cpp

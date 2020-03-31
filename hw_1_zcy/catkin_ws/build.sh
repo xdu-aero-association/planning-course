@@ -1,6 +1,6 @@
 #!/bin/bash
 
 # build ros workspace
-catkin_make
+catkin_make -DCMAKE_EXPORT_COMPILE_COMMANDS=Yes
 
 

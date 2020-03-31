@@ -6,11 +6,17 @@
 struct JPS3DNeib {
   // for each (dx,dy,dz) these contain:
   //    ns: neighbors that are always added
-  //    f1: forced neighbors to check
-  //    f2: neighbors to add if f1 is forced
-  int ns[27][3][26];
-  int f1[27][3][12];
-  int f2[27][3][12];
+  //    f1: forced neighbors to check (for black obs nodes)
+  //    f2: neighbors to add if f1 is forced (for pink nodes)
+  // note: the paper of 3d JPS's neighbors do not consider symmetry, and below we should consider symmetry
+  //       (so the number to check is larger) !!!
+  // 1st dim: there are 26+1(self) directions that may be the source node direction
+  // 2nd dim: there are three dims of coords
+  // 3rd dim: each explained
+  // note: 1st stored as (idx = i + j * 3 + k * 3^2)
+  int ns[27][3][26]; // 3rd: max 26 node always added
+  int f1[27][3][12]; // 3rd: max 8 forced to check 
+  int f2[27][3][12]; // 3rd: max 12 to add if forced
   // nsz contains the number of neighbors for the four different types of moves:
   // no move (norm 0):        26 neighbors always added
   //                          0 forced neighbors to check (never happens)

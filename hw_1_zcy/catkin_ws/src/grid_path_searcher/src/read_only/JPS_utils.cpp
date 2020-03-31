@@ -4,6 +4,7 @@ constexpr int JPS3DNeib::nsz[4][2];
 JPS3DNeib::JPS3DNeib() 
 {
     int id = 0;
+    // we are iterating target node(and it's of course one of natural neighbors)
     for(int dz = -1; dz <= 1; ++ dz) {
         for(int dy = -1; dy <= 1; ++ dy) {
             for(int dx = -1; dx <= 1; ++ dx) {
@@ -63,18 +64,18 @@ void JPS3DNeib::Neib(int dx, int dy, int dz, int norm1, int dev,
         case 2:
             switch(dev){
                 case 0:
-                    if(dz == 0){
+                    if(dz == 0){ // target is at x-y plane (both dx,dy != 0, dz == 0)
                         tx = 0; ty = dy; tz = 0; return;
-                    }else{
+                    }else{ // target is at y-z plane (both dy,dz != 0, dx == 0) or at x-z plane (both dx,dz != 0, dy == 0)
                         tx = 0; ty = 0; tz = dz; return;
                     }
                 case 1:
-                    if(dx == 0){
+                    if(dx == 0){ // target is at y-z plane (both dy,dz != 0, dx == 0)
                         tx = 0; ty = dy; tz = 0; return;
-                    }else{
+                    }else{ // target is at x-y plane (both dx,dy != 0, dz == 0) or at x-z plane (both dx,dz != 0, dz == 0)
                         tx = dx; ty = 0; tz = 0; return;
                     }
-                case 2:
+                case 2: // the diagonal target is always added
                     tx = dx; ty = dy; tz = dz; return;
             }
         case 3:
@@ -96,7 +97,7 @@ void JPS3DNeib::FNeib( int dx, int dy, int dz, int norm1, int dev,
 {
     switch(norm1){
         case 1:
-            switch(dev){
+            switch(dev){ // first we assume target in z direction(or opposite), so obs are at x-y plane
                 case 0: fx= 0; fy= 1; fz = 0; break;
                 case 1: fx= 0; fy=-1; fz = 0; break;
                 case 2: fx= 1; fy= 0; fz = 0; break;
@@ -106,11 +107,11 @@ void JPS3DNeib::FNeib( int dx, int dy, int dz, int norm1, int dev,
                 case 6: fx=-1; fy= 1; fz = 0; break;
                 case 7: fx=-1; fy=-1; fz = 0; break;
             }
-            nx = fx; ny = fy; nz = dz;
+            nx = fx; ny = fy; nz = dz; // the forced nodes is at target's level
             // switch order if different direction
-            if(dx != 0){
-                fz = fx; fx = 0;
-                nz = fz; nx = dx;
+            if(dx != 0){ // target is at x direction(or opposite)
+                fz = fx; fx = 0; // switch x & z
+                nz = fz; nx = dx; // the forced nodes is at target's level
             }
 
             if(dy != 0){
@@ -119,7 +120,7 @@ void JPS3DNeib::FNeib( int dx, int dy, int dz, int norm1, int dev,
             }
             return;
         case 2:
-            if(dx == 0){
+            if(dx == 0){ // target is at y-z plane (both dy,dz != 0, dx == 0)
                 switch(dev){
                     case 0:
                         fx = 0; fy = 0; fz = -dz;
@@ -172,7 +173,7 @@ void JPS3DNeib::FNeib( int dx, int dy, int dz, int norm1, int dev,
                         return;
                 }
             }
-            else if(dy == 0){
+            else if(dy == 0){ // target is at x-z plane (both dx,dz != 0, dy == 0)
                 switch(dev){
                     case 0:
                         fx = 0; fy = 0; fz = -dz;
@@ -226,7 +227,7 @@ void JPS3DNeib::FNeib( int dx, int dy, int dz, int norm1, int dev,
                 }
             }
             else{// dz==0
-                switch(dev){
+                switch(dev){ // target is at x-y plane (both dx,dy != 0, dz == 0)
                     case 0:
                         fx = 0; fy = -dy; fz = 0;
                         nx = dx; ny = -dy; nz = 0;

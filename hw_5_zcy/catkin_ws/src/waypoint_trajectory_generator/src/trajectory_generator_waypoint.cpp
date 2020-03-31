@@ -930,6 +930,11 @@ Eigen::VectorXd TrajectoryGeneratorWaypoint::OSQPSolver(
     }
     if (settings)  c_free(settings);
 
+    delete [] P_i;
+    delete [] P_p;
+    delete [] A_i;
+    delete [] A_p;
+
     return coeff;
 }
 

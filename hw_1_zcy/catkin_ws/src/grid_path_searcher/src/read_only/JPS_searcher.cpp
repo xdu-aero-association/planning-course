@@ -12,12 +12,14 @@ inline void JPSPathFinder::JPSGetSucc(GridNodePtr currentPtr, vector<GridNodePtr
     int num_neib  = jn3d->nsz[norm1][0];
     int num_fneib = jn3d->nsz[norm1][1];
     int id = (currentPtr->dir(0) + 1) + 3 * (currentPtr->dir(1) + 1) + 9 * (currentPtr->dir(2) + 1);
+    // note: we need to add 1 to each dim to calculate id, 
+    // because the neighbors are constructed from -1 to 1 for each dim !!!
 
     for( int dev = 0; dev < num_neib + num_fneib; ++dev) {
         Vector3i neighborIdx;
         Vector3i expandDir;
 
-        if( dev < num_neib ) {
+        if( dev < num_neib ) { // first check natural neighbors
             expandDir(0) = jn3d->ns[id][0][dev];
             expandDir(1) = jn3d->ns[id][1][dev];
             expandDir(2) = jn3d->ns[id][2][dev];
@@ -25,7 +27,7 @@ inline void JPSPathFinder::JPSGetSucc(GridNodePtr currentPtr, vector<GridNodePtr
             if( !jump(currentPtr->index, expandDir, neighborIdx) )  
                 continue;
         }
-        else {
+        else { // then check forced neighbors
             int nx = currentPtr->index(0) + jn3d->f1[id][0][dev - num_neib];
             int ny = currentPtr->index(1) + jn3d->f1[id][1][dev - num_neib];
             int nz = currentPtr->index(2) + jn3d->f1[id][2][dev - num_neib];
@@ -59,26 +61,33 @@ bool JPSPathFinder::jump(const Vector3i & curIdx, const Vector3i & expDir, Vecto
 {
     neiIdx = curIdx + expDir;
 
-    if( !isFree(neiIdx) )
+    if( !isFree(neiIdx) ) // if we hit an obs, stop jumping immediately & return null
         return false;
 
-    if( neiIdx == goalIdx )
+    if( neiIdx == goalIdx ) // if we reach goal, stop jumping immediately & return neighbor
         return true;
 
-    if( hasForced(neiIdx, expDir) )
+    if( hasForced(neiIdx, expDir) ) // if there is an obs at vicinity, stop jumping immediately & return neighbor
         return true;
 
-    const int id = (expDir(0) + 1) + 3 * (expDir(1) + 1) + 9 * (expDir(2) + 1);
+    const int id = (expDir(0) + 1) + 3 * (expDir(1) + 1) + 9 * (expDir(2) + 1); // continue jumping
+    // note: we need to add 1 to each dim to calculate id, 
+    // because the neighbors are constructed from -1 to 1 for each dim !!!
     const int norm1 = abs(expDir(0)) + abs(expDir(1)) + abs(expDir(2));
     int num_neib = jn3d->nsz[norm1][0];
 
-    for( int k = 0; k < num_neib - 1; ++k ){
+    for( int k = 0; k < num_neib - 1; ++k ){ 
+        // why -1 ? because here we only check straight moves in diagonal dirs
+        // the last one is always the diagonal target
         Vector3i newNeiIdx;
         Vector3i newDir(jn3d->ns[id][0][k], jn3d->ns[id][1][k], jn3d->ns[id][2][k]);
         if( jump(neiIdx, newDir, newNeiIdx) ) 
             return true;
     }
 
+    // the last one of diagonal & straight dirs will be checked here
+    // the structure here to check straights in diagnals first 
+    // is to make the checking procedure like tree growing
     return jump(neiIdx, expDir, neiIdx);
 }
 
@@ -178,6 +187,7 @@ void JPSPathFinder::JPSGraphSearch(Eigen::Vector3d start_pt, Eigen::Vector3d end
     startPtr -> id = 1; 
     startPtr -> coord = start_pt;
     openSet.insert( make_pair(startPtr -> fScore, startPtr) );
+    std::multimap<double, GridNodePtr>::iterator openSetItr;
     /*
     *
     STEP 2 :  some else preparatory works which should be done before while loop
@@ -202,6 +212,11 @@ void JPSPathFinder::JPSGraphSearch(Eigen::Vector3d start_pt, Eigen::Vector3d end
         *
         *
         */
+
+        openSetItr = openSet.begin();
+        currentPtr = openSetItr->second;
+        currentPtr->id = -1;       // put it in closed set
+        openSet.erase(openSetItr); // erase it from openset
 
         // if the current node is the goal 
         if( currentPtr->index == goalIdx ){
@@ -232,7 +247,10 @@ void JPSPathFinder::JPSGraphSearch(Eigen::Vector3d start_pt, Eigen::Vector3d end
             neighborPtrSets[i]->id = 1 : expanded, equal to this node is in close set
             *        
             */
-            if(neighborPtr -> id != 1){ //discover a new node
+            neighborPtr = neighborPtrSets[i];
+            double gScore = currentPtr->gScore + edgeCostSets[i];
+            double hScore = getHeu(neighborPtr, endPtr);
+            if(neighborPtr -> id == -1){ //discover a new node
                 /*
                 *
                 *
@@ -240,9 +258,18 @@ void JPSPathFinder::JPSGraphSearch(Eigen::Vector3d start_pt, Eigen::Vector3d end
                 please write your code below
                 *        
                 */
-                continue;
+                if (neighborPtr->gScore >= gScore) {
+                    neighborPtr->gScore = gScore;
+                    neighborPtr->fScore = gScore + hScore;
+                    neighborPtr->cameFrom = currentPtr;
+                    for(int i = 0; i < 3; i++){
+                        neighborPtr->dir(i) = neighborPtr->index(i) - currentPtr->index(i);
+                        if( neighborPtr->dir(i) != 0)
+                            neighborPtr->dir(i) /= abs( neighborPtr->dir(i) );
+                    }
+                }
             }
-            else if(tentative_gScore <= neighborPtr-> gScore){ //in open set and need update
+            else if(neighborPtr -> id == 1){ //in open set and need update
                 /*
                 *
                 *
@@ -250,16 +277,31 @@ void JPSPathFinder::JPSGraphSearch(Eigen::Vector3d start_pt, Eigen::Vector3d end
                 please write your code below
                 *        
                 */
-
-
-                // if change its parents, update the expanding direction 
-                //THIS PART IS ABOUT JPS, you can ignore it when you do your Astar work
+                if (neighborPtr->gScore >= gScore) {
+                    neighborPtr->gScore = gScore;
+                    neighborPtr->fScore = gScore + hScore;
+                    neighborPtr->cameFrom = currentPtr;
+                    // if change its parents, update the expanding direction 
+                    //THIS PART IS ABOUT JPS, you can ignore it when you do your Astar work
+                    for(int i = 0; i < 3; i++){
+                        neighborPtr->dir(i) = neighborPtr->index(i) - currentPtr->index(i);
+                        if( neighborPtr->dir(i) != 0)
+                            neighborPtr->dir(i) /= abs( neighborPtr->dir(i) );
+                    }
+                }
+            }  
+            else {
+                neighborPtr->id = 1;
+                neighborPtr->gScore = gScore;
+                neighborPtr->fScore = gScore + hScore;
+                neighborPtr->cameFrom = currentPtr;
+                openSet.insert(make_pair(neighborPtr->fScore, neighborPtr));
                 for(int i = 0; i < 3; i++){
                     neighborPtr->dir(i) = neighborPtr->index(i) - currentPtr->index(i);
                     if( neighborPtr->dir(i) != 0)
                         neighborPtr->dir(i) /= abs( neighborPtr->dir(i) );
                 }
-            }      
+            }    
         }
     }
     //if search fails

@@ -107,8 +107,10 @@ void trajGeneration(Eigen::MatrixXd path)
     // generate a minimum-snap piecewise monomial polynomial-based trajectory
     bool method_switch = 1;
     if (method_switch == 0) {
+        // closed form solution
         _polyCoeff = trajectoryGeneratorWaypoint.PolyQPGeneration(_dev_order, path, vel, acc, _polyTime);
     } else {
+        // OOQP or OSQP solution
         // MatrixXd polyCoeff_temp = trajectoryGeneratorWaypoint.SolvebyOOQP(_dev_order, path, vel, acc, _polyTime);
         _polyCoeff = trajectoryGeneratorWaypoint.SolvebyOOQPwithEigen(_dev_order, path, vel, acc, _polyTime);    
     }
