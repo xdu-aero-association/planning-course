@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 2.8.3)
 project(grid_path_searcher)
-add_compile_options(-std=c++11)
+add_compile_options(-std=c++14)
 
 # Set compile option for debug
 #set(CMAKE_CXXX_FLAGS "${CMAKE_CXX_FLAGS} -g" )

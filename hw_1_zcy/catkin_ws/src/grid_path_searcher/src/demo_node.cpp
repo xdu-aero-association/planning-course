@@ -17,6 +17,7 @@
 #include "Astar_searcher.h"
 #include "JPS_searcher.h"
 #include "backward.hpp"
+#include <memory>
 
 using namespace std;
 using namespace Eigen;
@@ -40,14 +41,16 @@ int _max_x_id, _max_y_id, _max_z_id;
 ros::Subscriber _map_sub, _pts_sub;
 ros::Publisher _grid_path_vis_pub, _visited_nodes_vis_pub, _grid_map_vis_pub;
 
-AstarPathFinder *_astar_path_finder = new AstarPathFinder();
-JPSPathFinder *_jps_path_finder = new JPSPathFinder();
+std::shared_ptr<AstarPathFinder> _astar_path_finder (new AstarPathFinder);
+std::shared_ptr<JPSPathFinder> _jps_path_finder (new JPSPathFinder);
 
 void rcvWaypointsCallback(const nav_msgs::Path &wp);
 void rcvPointCloudCallBack(const sensor_msgs::PointCloud2 &pointcloud_map);
 
 void visGridPath(vector<Vector3d> nodes, bool is_use_jps);
 void visVisitedNode(vector<Vector3d> nodes);
+void innerCycle(std::shared_ptr<AstarPathFinder> path_finder, const Vector3d start_pt, const Vector3d target_pt);
+void innerCycle(std::shared_ptr<JPSPathFinder> path_finder, const Vector3d start_pt, const Vector3d target_pt);
 void pathFinding(const Vector3d start_pt, const Vector3d target_pt);
 
 void rcvWaypointsCallback(const nav_msgs::Path &wp) {
@@ -104,20 +107,68 @@ void rcvPointCloudCallBack(const sensor_msgs::PointCloud2 &pointcloud_map) {
   _has_map = true;
 }
 
-void pathFinding(const Vector3d start_pt, const Vector3d target_pt) {
-  // Call A* to search for a path
-  _astar_path_finder->AstarGraphSearch(start_pt, target_pt);
+void innerCycle(std::shared_ptr<AstarPathFinder> path_finder, const Vector3d start_pt, const Vector3d target_pt) {
+  // Call A*/JPS to search for a path
+  path_finder->AstarGraphSearch(start_pt, target_pt);
 
   // Retrieve the path
-  auto grid_path = _astar_path_finder->getPath();
-  auto visited_nodes = _astar_path_finder->getVisitedNodes();
+  auto grid_path = path_finder->getPath();
+  auto visited_nodes = path_finder->getVisitedNodes();
 
   // Visualize the result
   visGridPath(grid_path, false);
   visVisitedNode(visited_nodes);
 
   // Reset map for next call
-  _astar_path_finder->resetUsedGrids();
+  path_finder->resetUsedGrids();
+}
+
+void innerCycle(std::shared_ptr<JPSPathFinder> path_finder, const Vector3d start_pt, const Vector3d target_pt) {
+  // Call A*/JPS to search for a path
+  path_finder->JPSGraphSearch(start_pt, target_pt);
+
+  // Retrieve the path
+  auto grid_path = path_finder->getPath();
+  auto visited_nodes = path_finder->getVisitedNodes();
+
+  // Visualize the result
+  visGridPath(grid_path, true);
+  visVisitedNode(visited_nodes);
+
+  // Reset map for next call
+  path_finder->resetUsedGrids();
+}
+
+void pathFinding(const Vector3d start_pt, const Vector3d target_pt) {
+  // --------------------- 1. dijkstra ---------------------
+  _astar_path_finder->set_h_type(4);
+  _astar_path_finder->set_tie_breaker(0);
+  innerCycle(_astar_path_finder, start_pt, target_pt);
+
+  // --------------------- 2. A* with Manhatton heuristic ---
+  _astar_path_finder->set_h_type(1);
+  _astar_path_finder->set_tie_breaker(0);
+  innerCycle(_astar_path_finder, start_pt, target_pt);
+
+  // --------------------- 3. A* with Euclidean heuristic ---
+  _astar_path_finder->set_h_type(0);
+  _astar_path_finder->set_tie_breaker(0);
+  innerCycle(_astar_path_finder, start_pt, target_pt);
+
+  // --------------------- 4. A* with L(inf) norm heuristic ---
+  _astar_path_finder->set_h_type(2);
+  _astar_path_finder->set_tie_breaker(0);
+  innerCycle(_astar_path_finder, start_pt, target_pt);
+
+  // --------------------- 5. A* with diagonal heuristic ---
+  _astar_path_finder->set_h_type(3);
+  _astar_path_finder->set_tie_breaker(0);
+  innerCycle(_astar_path_finder, start_pt, target_pt);
+
+  // --------------------- 6. A* with diagonal & tie breaker ---
+  _astar_path_finder->set_h_type(3);
+  _astar_path_finder->set_tie_breaker(1);
+  innerCycle(_astar_path_finder, start_pt, target_pt);
 
 //_use_jps = 0 -> Do not use JPS
 //_use_jps = 1 -> Use JPS
@@ -125,19 +176,15 @@ void pathFinding(const Vector3d start_pt, const Vector3d target_pt) {
 #define _use_jps 1
 #if _use_jps
   {
-    // Call JPS to search for a path
-    _jps_path_finder->JPSGraphSearch(start_pt, target_pt);
+    // --------------------- 7. JPS with diagonal ---------------------
+    _jps_path_finder->set_h_type(3);
+    _jps_path_finder->set_tie_breaker(0);
+    innerCycle(_jps_path_finder, start_pt, target_pt);
 
-    // Retrieve the path
-    auto grid_path = _jps_path_finder->getPath();
-    auto visited_nodes = _jps_path_finder->getVisitedNodes();
-
-    // Visualize the result
-    visGridPath(grid_path, _use_jps);
-    visVisitedNode(visited_nodes);
-
-    // Reset map for next call
-    _jps_path_finder->resetUsedGrids();
+    // --------------------- 7. JPS with diagonal & tie breaker ---
+    _jps_path_finder->set_h_type(3);
+    _jps_path_finder->set_tie_breaker(1);
+    innerCycle(_jps_path_finder, start_pt, target_pt);
   }
 #endif
 }
@@ -175,11 +222,11 @@ int main(int argc, char **argv) {
   _max_y_id = (int)(_y_size * _inv_resolution);
   _max_z_id = (int)(_z_size * _inv_resolution);
 
-  _astar_path_finder = new AstarPathFinder();
+  // _astar_path_finder = new AstarPathFinder();
   _astar_path_finder->initGridMap(_resolution, _map_lower, _map_upper,
                                   _max_x_id, _max_y_id, _max_z_id);
 
-  _jps_path_finder = new JPSPathFinder();
+  // _jps_path_finder = new JPSPathFinder();
   _jps_path_finder->initGridMap(_resolution, _map_lower, _map_upper, _max_x_id,
                                 _max_y_id, _max_z_id);
 
@@ -191,8 +238,8 @@ int main(int argc, char **argv) {
     rate.sleep();
   }
 
-  delete _astar_path_finder;
-  delete _jps_path_finder;
+  // delete _astar_path_finder;
+  // delete _jps_path_finder;
   return 0;
 }
 
@@ -217,8 +264,8 @@ void visGridPath(vector<Vector3d> nodes, bool is_use_jps) {
 
   if (is_use_jps) {
     node_vis.color.a = 1.0;
-    node_vis.color.r = 1.0;
-    node_vis.color.g = 0.0;
+    node_vis.color.r = 0.0;
+    node_vis.color.g = 1.0;
     node_vis.color.b = 1.0;
   } else {
     node_vis.color.a = 1.0;

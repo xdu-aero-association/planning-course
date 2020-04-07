@@ -7,6 +7,9 @@
 #include <iostream>
 #include <ros/console.h>
 #include <ros/ros.h>
+#include <stdlib.h>     /* srand, rand */
+#include <time.h>       /* time */
+#include <string>
 
 class AstarPathFinder {
 private:
@@ -20,6 +23,15 @@ protected:
   double resolution, inv_resolution;
   double gl_xl, gl_yl, gl_zl;
   double gl_xu, gl_yu, gl_zu;
+
+  // static auto key_comp = [] (double &f1, double &f2) {
+  //   if (f1 == f2 && tie_breaker_ == 1) {
+  //     srand (time(NULL));
+  //     f1 += double(rand() % 1000) / 1000.0 / 10000.0;
+  //     return f1 < f2;
+  //   }
+  //   return f1 < f2;
+  // }
 
   GridNodePtr terminatePtr;
   std::multimap<double, GridNodePtr> openSet;
@@ -38,6 +50,10 @@ protected:
   Eigen::Vector3d gridIndex2coord(const Eigen::Vector3i &index);
   Eigen::Vector3i coord2gridIndex(const Eigen::Vector3d &pt);
 
+  int h_selector_ = 0;
+  bool tie_breaker_ = 0;
+  std::string name_ = "Astar";
+
 public:
   AstarPathFinder(){};
   ~AstarPathFinder(){};
@@ -53,6 +69,12 @@ public:
   Eigen::Vector3d coordRounding(const Eigen::Vector3d &coord);
   std::vector<Eigen::Vector3d> getPath();
   std::vector<Eigen::Vector3d> getVisitedNodes();
+
+  double TieBreaker(const double fs);
+
+  void set_h_type(const int type) {h_selector_ = type;}
+  void set_tie_breaker(const bool type) {tie_breaker_ = type;}
+  std::string get_name() const {return name_;}
 };
 
 #endif

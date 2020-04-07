@@ -10,6 +10,7 @@ private:
   bool isOccupied(const Eigen::Vector3i &index) const;
   bool isFree(const int &idx_x, const int &idx_y, const int &idx_z) const;
   bool isFree(const Eigen::Vector3i &index) const;
+  std::string name_ = "JPS";
 
 public:
   JPS3DNeib *jn3d;

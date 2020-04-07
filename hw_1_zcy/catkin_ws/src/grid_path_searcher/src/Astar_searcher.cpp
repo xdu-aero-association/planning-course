@@ -83,6 +83,15 @@ vector<Vector3d> AstarPathFinder::getVisitedNodes() {
   return visited_nodes;
 }
 
+double AstarPathFinder::TieBreaker(const double fs) {
+  auto ptr = openSet.equal_range(fs);
+  if (ptr.first != std::end(openSet) && tie_breaker_ == 1) { // there is at least one equal element
+    srand (time(NULL));
+    return fs + double(rand() % 1000) / 1000.0 / 10000.0;
+  }
+  return fs;
+}
+
 Vector3d AstarPathFinder::gridIndex2coord(const Vector3i &index) {
   Vector3d pt;
 
@@ -181,10 +190,34 @@ double AstarPathFinder::getHeu(GridNodePtr node1, GridNodePtr node2) {
   *
   *
   */
+  int h_selector = h_selector_;
+  bool tie_breaker = tie_breaker_;
   double dx = node1->index(0) - (*node2).index(0);
   double dy = node1->index(1) - (*node2).index(1);
   double dz = node1->index(2) - (*node2).index(2);
-  double dist = sqrt(pow(dx, 2) + pow(dy, 2) + pow(dz, 2));
+  double dist;
+  if (h_selector == 0) { // L2 norm (euclidean norm)
+    dist = sqrt(pow(dx, 2) + pow(dy, 2) + pow(dz, 2));
+  } else if(h_selector == 1) { // L1 norm (manhattan norm)
+    dist = fabs(dx) + fabs(dy) + fabs(dz);
+  } else if(h_selector == 2) { // Linf norm
+    std::vector<double> v = {fabs(dx), fabs(dy), fabs(dz)};
+    std::vector<double>::iterator result = std::max_element(v.begin(), v.end());
+    dist = v.at(std::distance(v.begin(), result));
+  } else if (h_selector == 3) { // diagonal heuristic
+    std::vector<double> v = {fabs(dx), fabs(dy), fabs(dz)};
+    std::vector<double>::iterator result = std::max_element(v.begin(), v.end());
+    double max_ele = v.at(std::distance(v.begin(), result));
+    double sum = fabs(dx) + fabs(dy) + fabs(dz);
+    dist = max_ele + (sqrt(2.0) - 1.0) * (sum - max_ele);
+  } else { // dijkstra
+    dist = 0.0;
+  }
+  // if (tie_breaker == 1) {
+  //   srand (time(NULL));
+  //   dist += double(rand() % 1000) / 1000.0 / 10000.0;
+  // }
+
   return dist;
 }
 
@@ -314,6 +347,8 @@ void AstarPathFinder::AstarGraphSearch(Vector3d start_pt, Vector3d end_pt) {
           neighborPtr->gScore = gScore;
           neighborPtr->fScore = gScore + hScore;
           neighborPtr->cameFrom = currentPtr;
+          // tie breaker
+          neighborPtr->fScore = TieBreaker(neighborPtr->fScore);
         }
         // continue;
       } else if (neighborPtr->id ==
@@ -332,6 +367,8 @@ void AstarPathFinder::AstarGraphSearch(Vector3d start_pt, Vector3d end_pt) {
           neighborPtr->gScore = gScore;
           neighborPtr->fScore = gScore + hScore;
           neighborPtr->cameFrom = currentPtr;
+          // tie breaker
+          neighborPtr->fScore = TieBreaker(neighborPtr->fScore);
         }
         // continue;
       } else { // this node is in closed set
@@ -344,6 +381,9 @@ void AstarPathFinder::AstarGraphSearch(Vector3d start_pt, Vector3d end_pt) {
         neighborPtr->gScore = gScore;
         neighborPtr->fScore = gScore + hScore;
         neighborPtr->cameFrom = currentPtr;
+        // tie breaker
+        neighborPtr->fScore = TieBreaker(neighborPtr->fScore);
+        // insert new node
         openSet.insert(make_pair(neighborPtr->fScore, neighborPtr));
         // continue;
       }

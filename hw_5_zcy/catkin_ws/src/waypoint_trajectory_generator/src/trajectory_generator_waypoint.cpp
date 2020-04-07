@@ -1002,6 +1002,7 @@ void TrajectoryGeneratorWaypoint::LogData(const double data[], const int size, c
     for (int i = 0; i < size; ++i) {
         fp << data[i] << "," << idices[i] << "," << std::endl;
     }
+    fp.close();
 }
 
 void TrajectoryGeneratorWaypoint::LogData(const double data[], const int size, const int rows[], const int cols[], const std::string file_name) {
@@ -1011,6 +1012,7 @@ void TrajectoryGeneratorWaypoint::LogData(const double data[], const int size, c
     for (int i = 0; i < size; ++i) {
         fp << data[i] << "," << rows[i] << "," << cols[i] << "," << std::endl;
     }
+    fp.close();
 }
 
 void TrajectoryGeneratorWaypoint::LogData(const int data[], const int size, const int idices[], const std::string file_name) {
@@ -1020,6 +1022,7 @@ void TrajectoryGeneratorWaypoint::LogData(const int data[], const int size, cons
     for (int i = 0; i < size; ++i) {
         fp << data[i] << "," << idices[i] << "," << std::endl;
     }
+    fp.close();
 }
 
 void TrajectoryGeneratorWaypoint::LogData(const int data[], const int size, const int rows[], const int cols[], const std::string file_name) {
@@ -1029,4 +1032,5 @@ void TrajectoryGeneratorWaypoint::LogData(const int data[], const int size, cons
     for (int i = 0; i < size; ++i) {
         fp << data[i] << "," << rows[i] << "," << cols[i] << "," << std::endl;
     }
+    fp.close();
 }
