@@ -46,14 +46,15 @@ for k = 1:n_seg
         y_pos(idx) = 0.0;
         for i = 0:n_order
             basis_p = nchoosek(n_order, i) * t^i * (1-t)^(n_order-i);
-%             x_pos(idx) = 
-%             y_pos(idx) = 
+            n_coef1d = n_order+1;
+            x_pos(idx) = x_pos(idx) + basis_p * poly_coef_x((k-1)*n_coef1d+i+1);
+            y_pos(idx) = y_pos(idx) + basis_p * poly_coef_y((k-1)*n_coef1d+i+1);
         end
         idx = idx + 1;
     end
 end
 % scatter(...);
-% plot(...);
+plot(x_pos,y_pos,'.-');
 
 function poly_coef = MinimumSnapCorridorBezierSolver(axis, waypoints, corridor, ts, n_seg, n_order, v_max, a_max)
     start_cond = [waypoints(1), 0, 0];
@@ -64,11 +65,20 @@ function poly_coef = MinimumSnapCorridorBezierSolver(axis, waypoints, corridor, 
     [Q, M]  = getQM(n_seg, n_order, ts);
     Q_0 = M'*Q*M;
     Q_0 = nearestSPD(Q_0);
-    
+    assignin('base','M',M);
+    assignin('base','Q',Q);
+    assignin('base','Q_0',Q_0);
     %% #####################################################
     % STEP 2: get Aeq and beq
     [Aeq, beq] = getAbeq(n_seg, n_order, ts, start_cond, end_cond);
-    
+    assignin('base','Aeq',Aeq);
+    Aeq = Aeq * M; % transform Aeq to bezier form
+    assignin('base','Aeq_b',Aeq);
+    % get Aeq directly from bezier form
+    [Aeq_b_direct, beq_b_direct] = getAbeq1(n_seg, n_order, ts, start_cond, end_cond);
+    Aeq = Aeq_b_direct;
+    assignin('base','Aeq_b_direct',Aeq_b_direct);
+    assignin('base','beq_b_direct',beq_b_direct);
     %% #####################################################
     % STEP 3: get corridor_range, Aieq and bieq 
     
@@ -77,11 +87,15 @@ function poly_coef = MinimumSnapCorridorBezierSolver(axis, waypoints, corridor, 
     %                                   p2_min, p2_max;
     %                                   ...,
     %                                   pn_min, pn_max ];
-    corridor_range = [];
-    
+    corridor_range = zeros(n_seg,2);
+    for i = 1:n_seg
+        corridor_range(i,:) = [corridor(axis,i)-corridor(axis+2,i) corridor(axis,i)+corridor(axis+2,i)];
+    end
+    assignin('base','corridor_range',corridor_range);
     % STEP 3.2: get Aieq and bieq
     [Aieq, bieq] = getAbieq(n_seg, n_order, corridor_range, ts, v_max, a_max);
-    
+    assignin('base','Aieq',Aieq);
+
     f = zeros(size(Q_0,1),1);
     poly_coef = quadprog(Q_0,f,Aieq, bieq, Aeq, beq);
 end
