@@ -130,7 +130,7 @@ OBVPResult Homeworktool::OptimalBVP(Eigen::Vector3d _start_position,
     printf("[%d]: %.3f ", i, coeffs[i]);
   }
   printf("\n");
-  // example coeffs
+  // another way for coeffs
   Vector3d _target_velocity = Vector3d::Zero(3);
   Vector3d param1 = _target_position - _start_position;
   Vector3d param2 = _start_velocity + _target_velocity;
@@ -145,15 +145,15 @@ OBVPResult Homeworktool::OptimalBVP(Eigen::Vector3d _start_position,
   double coef2 =
       param1(0) * param2(0) + param1(1) * param2(1) + param1(2) * param2(2);
   double coef3 = param3(0) + param3(1) + param3(2);
-  VectorXd coeffs_ex = VectorXd::Zero(5, 1);
-  coeffs_ex[0] = -36.0 * coef1;
-  coeffs_ex[1] = 24.0 * coef2;
-  coeffs_ex[2] = -4.0 * coef3;
-  coeffs_ex[3] = 0.0;
-  coeffs_ex[4] = 1.0;
-  printf("coeffs_ex: \n");
+  VectorXd coeffs_an = VectorXd::Zero(5, 1);
+  coeffs_an[0] = -36.0 * coef1;
+  coeffs_an[1] = 24.0 * coef2;
+  coeffs_an[2] = -4.0 * coef3;
+  coeffs_an[3] = 0.0;
+  coeffs_an[4] = 1.0;
+  printf("coeffs_an: \n");
   for (int i = 0; i < 5; ++i) {
-    printf("[%d]: %.3f ", i, coeffs_ex[i]);
+    printf("[%d]: %.3f ", i, coeffs_an[i]);
   }
   printf("\n");
 
@@ -383,7 +383,7 @@ vector<Vector3d> Homeworktool::reconstructOptimalTrajactory(
     //            vy0 * time + py0;
     // state(2) = a[2] * time * time * time / 6 + b[2] * time * time / 2 +
     //            vz0 * time + pz0;
-    // ROS_INFO("[RECON] example state: %.3f %.3f %.3f", state(0), state(1),
+    // ROS_INFO("[RECON] another state: %.3f %.3f %.3f", state(0), state(1),
     //          state(2));
     time += delta_time;
   }
