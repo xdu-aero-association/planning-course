@@ -50,7 +50,7 @@ a = Result(1);
 b = Result(2);
 r = Result(3);
 
-J = int(J_inner,0,T);
+J = int(J_inner,t,0,T);
 J_T = subs(J);
 % solve for dJ=0
 dJ = diff(J_T,T);
