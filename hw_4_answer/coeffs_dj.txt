@@ -1,0 +1,11 @@
+T^0:
+- 36*pow(px0,2) + 72*px0*pxf - 36*pow(pxf,2) - 36*pow(py0,2) + 72*py0*pyf - 36*pow(pyf,2) - 36*pow(pz0,2) + 72*pz0*pzf - 36*pow(pzf,2)
+T^1:
+24*pxf*vx0 - 24*px0*vx0 - 24*py0*vy0 + 24*pyf*vy0 - 24*pz0*vz0 + 24*pzf*vz0
+T^2:
+- 4*pow(vx0,2) - 4*pow(vy0,2) - 4*pow(vz0,2)
+T^4:
+1
+
+S_an(z = 1,2,3,4)
+ pow(z,4) - pow(z,2)*(4*pow(vx0,2) + 4*pow(vy0,2) + 4*pow(vz0,2)) - z*(24*px0*vx0 - 24*pxf*vx0 + 24*py0*vy0 - 24*pyf*vy0 + 24*pz0*vz0 - 24*pzf*vz0) + 72*pz0*pzf + 72*py0*pyf + 72*px0*pxf - 36*pow(pzf,2) - 36*pow(pz0,2) - 36*pow(pyf,2) - 36*pow(py0,2) - 36*pow(pxf,2) - 36*pow(px0,2)

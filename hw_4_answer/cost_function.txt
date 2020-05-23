@@ -1,0 +1,11 @@
+% calculate cost function J = int(jerk^2+1)dx|x=[0,xf]
+% for 7th degree poly y = f(x)
+J = 
+xf^5*(720*c5^2 + 504*c3*c7 + 1152*c4*c6) + xf*(36*c3^2 + 1) + xf^3*(192*c4^2 + 240*c3*c5) + xf^7*((14400*c6^2)/7 + 3600*c5*c7) + xf^4*(360*c3*c6 + 720*c4*c5) + xf^6*(1680*c4*c7 + 2400*c5*c6) + 4900*c7^2*xf^9 + 144*c3*c4*xf^2 + 6300*c6*c7*xf^8
+J = 
+std::pow(xf,5)*(720.0*std::pow(c5,2) + 504.0*c3*c7 + 1152.0*c4*c6) + xf*(36.0*std::pow(c3,2) + 1.0) + std::pow(xf,3)*(192.0*std::pow(c4,2) + 240.0*c3*c5) + std::pow(xf,7)*((14400.0*std::pow(c6,2))/7.0 + 3600.0*c5*c7) + std::pow(xf,4)*(360.0*c3*c6 + 720.0*c4*c5) + std::pow(xf,6)*(1680.0*c4*c7 + 2400.0*c5*c6) + 4900.0*std::pow(c7,2)*std::pow(xf,9) + 144.0*c3*c4*std::pow(xf,2) + 6300.0*c6*c7*std::pow(xf,8)
+% for 5th degree poly y = f(x)
+J = 
+xf*(36*c3^2 + 1) + xf^3*(192*c4^2 + 240*c3*c5) + 720*c5^2*xf^5 + 144*c3*c4*xf^2 + 720*c4*c5*xf^4
+J = 
+xf*(36.0*std::pow(c3,2) + 1.0) + std::pow(xf,3)*(192.0*std::pow(c4,2) + 240.0*c3*c5) + 720.0*std::pow(c5,2)*std::pow(xf,5) + 144.0*c3*c4*std::pow(xf,2) + 720.0*c4*c5*std::pow(xf,4)

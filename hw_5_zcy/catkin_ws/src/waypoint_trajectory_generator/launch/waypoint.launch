@@ -1,8 +1,0 @@
-<launch>
-
-  <node pkg="waypoint_generator" name="waypoint_generator" type="waypoint_generator" output="screen">        
-      <remap from="~goal" to="/goal"/>
-      <param name="waypoint_type" value="manual"/>
-  </node>
-
-</launch>
