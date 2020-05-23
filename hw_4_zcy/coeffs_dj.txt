@@ -4,7 +4,7 @@ T^1:
 24*pxf*vx0 - 24*px0*vx0 - 24*py0*vy0 + 24*pyf*vy0 - 24*pz0*vz0 + 24*pzf*vz0
 T^2:
 - 4*pow(vx0,2) - 4*pow(vy0,2) - 4*pow(vz0,2)
-T^3:
+T^4:
 1
 
 S_an(z = 1,2,3,4)

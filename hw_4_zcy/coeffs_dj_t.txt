@@ -1,0 +1,18 @@
+% x,y combined optimization for one J cost
+
+[ T^6, T^4, T^3, T^2, T, 1]
+T^6:
+1
+T^5:
+0
+T^4:
+- 9*ax0^2 + 6*ax0*axf - 9*axf^2 - 9*ay0^2 + 6*ay0*ayf - 9*ayf^2
+T^3:
+96*axf*vx0 - 96*ax0*vxf - 144*ax0*vx0 + 144*axf*vxf - 144*ay0*vy0 - 96*ay0*vyf + 96*ayf*vy0 + 144*ayf*vyf
+T^2:
+- 576*vx0^2 - 1008*vx0*vxf - 576*vxf^2 - 576*vy0^2 - 1008*vy0*vyf - 576*vyf^2 - 360*ax0*px0 + 360*ax0*pxf + 360*axf*px0 - 360*axf*pxf - 360*ay0*py0 + 360*ay0*pyf + 360*ayf*py0 - 360*ayf*pyf
+T^1:
+2880*pxf*vx0 - 2880*px0*vxf - 2880*px0*vx0 + 2880*pxf*vxf - 2880*py0*vy0 - 2880*py0*vyf + 2880*pyf*vy0 + 2880*pyf*vyf
+T^0:
+- 3600*px0^2 + 7200*px0*pxf - 3600*pxf^2 - 3600*py0^2 + 7200*py0*pyf - 3600*pyf^2
+

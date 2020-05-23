@@ -49,4 +49,4 @@ eqn = dJ == 0;
 S_an = solve(eqn,T);
 S = solve(eqn,T, 'MaxDegree', 4);        
 % coeffs = sym2poly(dJ_sim);
-coeffs_dj = coeffs(dJ_sim,T);
+[coeffs_dj,T_set] = coeffs(dJ_sim,T);

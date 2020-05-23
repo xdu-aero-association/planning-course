@@ -37,9 +37,9 @@ function [Aieq, bieq] = getAbieq(n_seg, n_order, corridor_range, ts, v_max, a_ma
             Aieq_a((i-1)*n_coef1d_d2+j,j) = 1;
             Aieq_a((i-1)*n_coef1d_d2+j,j+1) = -2;
             Aieq_a((i-1)*n_coef1d_d2+j,j+2) = 1;
-            Aieq_a((i-1)*n_coef1d_d2+j+n_all_poly_d2,j) = 1;
-            Aieq_a((i-1)*n_coef1d_d2+j+n_all_poly_d2,j+1) = -2;
-            Aieq_a((i-1)*n_coef1d_d2+j+n_all_poly_d2,j+2) = 1;
+            Aieq_a((i-1)*n_coef1d_d2+j+n_all_poly_d2,j) = -1;
+            Aieq_a((i-1)*n_coef1d_d2+j+n_all_poly_d2,j+1) = 2;
+            Aieq_a((i-1)*n_coef1d_d2+j+n_all_poly_d2,j+2) = -1;
         end
         bieq_a((i-1)*n_coef1d_d2+1:i*n_coef1d_d2) = ones(n_coef1d_d2,1)*a_max;
         bieq_a((i-1)*n_coef1d_d2+1+n_all_poly_d2:i*n_coef1d_d2+n_all_poly_d2) = ones(n_coef1d_d2,1)*a_max;
